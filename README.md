@@ -32,6 +32,11 @@ Until `APPS_SCRIPT_URL` is set, submitting shows a Hebrew notice instead of fail
 silently. Leaving `DRIVE_UPLOAD_LINK` untouched hides the "upload it directly" link
 and shows an email fallback instead — so nothing looks broken either way.
 
+`DRIVE_UPLOAD_LINK` points at a **dedicated "העלאות גדולות" folder**, shared as
+"anyone with the link can edit". It is deliberately NOT one of the three answer
+folders: anyone holding that link can see and delete everything in the folder it
+opens, and the answer folders hold other clients' material.
+
 And in `apps-script/Code.gs`: the three folder IDs and the Sheet ID.
 
 ## How a question is defined
