@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>שאלון הפקה — סרטוני הדרכה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand-mark">AI</div>
+    <div>
+      <h1>שאלון הפקה — סרטוני הדרכה</h1>
+      <p>שאלון נפרד לכל מחלקה</p>
+    </div>
+  </div>
+</header>
+<div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+
+<div class="wrap">
+
+  <div class="screen active" id="screen-form">
+
+    <div class="intro">
+      <h2>לפני שמתחילים</h2>
+      <p>השאלון הזה אוסף את כל מה שצריך כדי להתחיל לכתוב תסריט ולתכנן צילום — קהל, מטרה, מסרים, מיתוג וחומרים קיימים.</p>
+      <div class="notice notice-warn">
+        <b>יש למלא שאלון נפרד לכל מחלקה.</b>
+        אם צריך סרטונים גם לסמסונג וגם להאייר — מלאו את השאלון פעם אחת עבור כל אחת מהן,
+        ושלחו. אחרי השליחה הראשונה אפשר לפתוח את הדף מחדש ולמלא את השנייה.
+      </div>
+      <p style="margin-top:12px">התשובות נשמרות אוטומטית במכשיר, כך שאפשר לעצור באמצע ולחזור.</p>
+    </div>
+
+    <div id="form"></div>
+
+    <div class="submit-bar">
+      <button class="btn btn-primary btn-block" id="submitBtn" type="button">שליחת השאלון</button>
+      <p class="hint" id="counter"></p>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-success">
+    <div class="result-card">
+      <div class="result-icon ok">✓</div>
+      <h2>השאלון נשלח בהצלחה</h2>
+      <p>התשובות נשמרו והקבצים הועלו לתיקייה של המחלקה.</p>
+      <p><b>צריך למלא גם עבור המחלקה השנייה?</b></p>
+      <p style="margin-top:18px">
+        <a class="btn btn-primary" href="videos.html">מילוי שאלון למחלקה נוספת</a>
+      </p>
+      <p style="margin-top:10px"><a class="btn btn-secondary" href="index.html">חזרה לרשימת השאלונים</a></p>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-fail">
+    <div class="result-card">
+      <div class="result-icon bad">!</div>
+      <h2>השליחה נכשלה</h2>
+      <p>התשובות שלכם <b>לא אבדו</b> — הן שמורות במכשיר. אפשר לנסות שוב.</p>
+      <p style="font-size:13px;color:#9aa3b8;direction:ltr" id="failReason"></p>
+      <p style="margin-top:22px"><button class="btn btn-primary" id="retryBtn" type="button">חזרה לשאלון וניסיון נוסף</button></p>
+    </div>
+  </div>
+
+  <p class="footer">AI Lab · שאלון הפקה פנימי</p>
+</div>
+
+<script src="shared.js"></script>
+<script>
+const FORM = {
+  storageKey: "videos",
+  submitLabel: "שליחת השאלון",
+  hasConditionals: true,
+  metaTitle: "מחלקה ופרטי מילוי",
+  metaSub: "בחרו מחלקה — היא קובעת לאן נשמרים החומרים",
+
+  // The department chosen at the top routes the whole submission: which Drive
+  // folder the files land in, and how the row is labelled in the sheet.
+  resolveFormId: function (s) {
+    return s.department === "האייר" ? "video_haier" : "video_samsung";
+  },
+
+  metaQuestions: [
+    { key: "department", type: "single", required: true, cols2: true,
+      label: "עבור איזו מחלקה השאלון הזה?",
+      help: "כל מחלקה מקבלת שאלון נפרד. הבחירה כאן קובעת לאיזו תיקייה יישמרו הקבצים.",
+      options: ["סמסונג", "האייר"] },
+    { key: "filledBy", type: "short", label: "ממלא השאלון", required: true,
+      placeholder: "שם מלא" },
+    { key: "clientContact", type: "short", label: "איש הקשר בחברה", required: true,
+      placeholder: "שם ותפקיד" },
+  ],
+
+  sections: [
+    /* --------------------------------------------------- 1. קהל ומטרה */
+    {
+      title: "קהל ומטרה",
+      sub: "למי מדברים, ובשביל מה",
+      questions: [
+        { key: "audience", type: "long", required: true, rows: 3,
+          label: "מיהו קהל היעד של הסרטון?",
+          help: "לקוחות קצה? מוכרנים בחנויות? טכנאים? עובדים חדשים? ככל שתדייקו, כך התסריט יהיה חד יותר." },
+
+        { key: "goal", type: "long", required: true, rows: 3,
+          label: "מה הצופה אמור לדעת או לעשות אחרי הצפייה?",
+          help: "פעולה אחת ברורה עדיפה על חמש." },
+
+        { key: "key_messages", type: "long", required: true, rows: 4,
+          label: "מהם מסרי המפתח? (3–5)",
+          help: "מה חייב להיאמר, גם אם נצטרך לקצר הכול." },
+
+        { key: "products", type: "long", rows: 3,
+          label: "אילו מוצרים או דגמים ספציפיים אמורים להופיע?" },
+      ],
+    },
+
+    /* ------------------------------------------------- 2. פורמט וסגנון */
+    {
+      title: "פורמט וסגנון",
+      sub: "איך זה אמור להרגיש",
+      questions: [
+        { key: "length", type: "single", required: true,
+          label: "אורך רצוי לסרטון",
+          options: ["עד 60 שניות", "1–3 דקות", "3–5 דקות", "5–10 דקות", "מעל 10 דקות"],
+          cols2: true },
+
+        { key: "tone", type: "single", required: true,
+          label: "טון וסגנון",
+          options: ["רשמי ומקצועי", "ידידותי וקליל", "אנרגטי ושיווקי", "הסברתי־טכני"],
+          cols2: true },
+
+        { key: "platforms", type: "multi", required: true,
+          label: "איפה יוצג הסרטון?",
+          help: "משפיע על יחס התמונה, על האורך ועל הצורך בכתוביות.",
+          options: ["אתר החברה", "יוטיוב", "וואטסאפ / הודעות", "הדרכה פנימית", "תערוכות ונקודות מכירה", "רשתות חברתיות"],
+          cols2: true },
+
+        { key: "reference_videos", type: "long", rows: 3,
+          label: "קישורים לסרטונים שאהבתם — ומה בדיוק אהבתם בהם",
+          help: "אפשר גם סרטונים מתחומים אחרים לגמרי. חשוב לכתוב מה עבד: הקצב? הקריינות? העריכה?" },
+
+        { key: "avoid", type: "long", rows: 3,
+          label: "ממה חשוב להימנע?",
+          help: "מסרים, ניסוחים, מתחרים שאסור להזכיר, סגנון שלא מתאים למותג." },
+      ],
+    },
+
+    /* ------------------------------------------------ 3. מיתוג וחומרים */
+    {
+      title: "מיתוג וחומרים קיימים",
+      sub: "כל מה שכבר קיים אצלכם וחוסך לנו זמן",
+      questions: [
+        { key: "branding_rules", type: "long", rows: 3,
+          label: "דרישות מיתוג",
+          help: "לוגו, צבעים, פונטים, מיקום הלוגו, חוקי מותג של היצרן." },
+
+        { key: "brand_assets", type: "file", driveNote: true,
+          accept: "image/*,.pdf,.ai,.eps,.zip,.ttf,.otf",
+          label: "העלו נכסי מותג",
+          help: "לוגו באיכות גבוהה, מדריך מותג, פונטים, פלטת צבעים." },
+
+        { key: "existing_materials", type: "file", driveNote: true,
+          accept: "image/*,video/*,.pdf,.ppt,.pptx,.doc,.docx,.zip",
+          label: "העלו חומרים קיימים",
+          help: "מצגות, מדריכי מוצר, תמונות מוצר, קטלוגים, סרטונים קודמים." },
+
+        { key: "has_previous_videos", type: "yesno", cols2: true,
+          label: "האם הופקו בעבר סרטונים למחלקה הזו?" },
+
+        { key: "previous_videos_feedback", type: "long", rows: 3,
+          label: "מה עבד ומה לא עבד בסרטונים הקודמים?",
+          showIf: function (s) { return s.has_previous_videos === "כן"; } },
+      ],
+    },
+
+    /* ------------------------------------------------ 4. קריינות ושפה */
+    {
+      title: "קריינות ושפה",
+      sub: "מי מדבר, ובאיזו שפה",
+      questions: [
+        { key: "voiceover_language", type: "single", required: true,
+          label: "שפת הקריינות",
+          options: ["עברית", "אנגלית", "ערבית", "רוסית", "ללא קריינות"],
+          cols2: true },
+
+        { key: "voiceover_gender", type: "single",
+          label: "העדפת מגדר לקריינות",
+          options: ["קריין", "קריינית", "לא משנה"],
+          cols2: true,
+          showIf: function (s) { return s.voiceover_language && s.voiceover_language !== "ללא קריינות"; } },
+
+        { key: "subtitles", type: "single", required: true,
+          label: "האם נדרשות כתוביות?",
+          options: ["כן, בעברית", "כן, באנגלית", "כן, בשתי השפות", "לא"],
+          cols2: true },
+
+        { key: "on_camera", type: "yesno", cols2: true,
+          label: "האם נדרש צילום באתר שלכם (משרד, מפעל, חנות)?" },
+
+        { key: "location_details", type: "long", rows: 2,
+          label: "היכן מתבצע הצילום, ומי איש הקשר במקום?",
+          showIf: function (s) { return s.on_camera === "כן"; } },
+      ],
+    },
+
+    /* -------------------------------------------- 5. אישורים ולוחות זמנים */
+    {
+      title: "אישורים ולוחות זמנים",
+      sub: "מי מחליט, ועד מתי",
+      questions: [
+        { key: "approver", type: "long", required: true, rows: 2,
+          label: "מי מאשר את הגרסה הסופית?",
+          help: "שם ותפקיד. ציינו גם גורמים נוספים שצריכים לאשר — יבואן, יצרן, מחלקה משפטית, מנהל מותג." },
+
+        { key: "deadline", type: "date", required: true,
+          label: "תאריך יעד לסרטון מוכן",
+          help: "אם התאריך קשור להשקה, תערוכה או קמפיין — ציינו זאת בהערות למטה, כדי שנדע מה גמיש ומה לא." },
+
+        { key: "notes", type: "long", rows: 3,
+          label: "הערות נוספות",
+          help: "כל דבר שלא נשאלתם עליו ואתם חושבים שחשוב שנדע." },
+      ],
+    },
+  ],
+};
+
+buildForm(FORM);
+</script>
+</body>
+</html>
