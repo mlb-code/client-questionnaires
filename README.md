@@ -72,6 +72,17 @@ decisions (login method, offline, ERP integration path, OCR fields, retention) a
 inferred from those answers; the mapping lives in Meir's internal notes, outside
 this repo.
 
+### Meeting mode — `app-spec.html?mode=meeting`
+
+Meir fills the same questionnaire live over Zoom, typing while the client's
+people talk. `applyMeetingMode(FORM)` (bottom of `app-spec.form.js`) reshapes the
+schema before `buildForm`: chapters follow `MEETING_AGENDA` (agent first, finance,
+management last) with `who` / `minutes` hints in each chapter head, no role step,
+`skipRequired`, a `notes_<id>` long question appended to every chapter, a jump
+`<select>` between chapters, and a "save a copy so far" link under the button.
+The draft is stored under its own key (`app_spec_meeting`), so a client's draft
+on the same device is never touched.
+
 ## How a question is defined
 
 Questions are data, not markup. Each page declares a schema and `buildForm()`

@@ -9,6 +9,9 @@
      wizard: true        one chapter per screen, "הבא / הקודם" in the sticky bar
      allowUnknown: true  every non-file question gets a "לא יודע/ת" toggle
      sections[i].showIf  chapter-level condition (e.g. by the respondent's role)
+     meeting: true       facilitator mode: nothing required, jump menu between
+                         chapters, "who answers / minutes" hints per chapter
+     skipRequired, jumpMenu, initialState, unknownLabel / unknownOnLabel
    --------------------------------------------------------------------------- */
 
 /* =====================  CONFIG — Meir edits these two  ===================== */
@@ -202,7 +205,24 @@ function buildForm(FORM) {
       step === 0
         ? "התחלה"
         : `פרק ${step} מתוך ${list.length - 1}`;
-    return el("div", { class: "step-head" }, el("span", { class: "step-label" }, label), dots);
+    const head = el("div", { class: "step-head" }, el("span", { class: "step-label" }, label), dots);
+
+    if (FORM.jumpMenu) {
+      // A facilitator jumps around during a meeting; a select is the most
+      // compact chapter list on both a laptop and a phone.
+      const select = el("select", {
+        class: "jump",
+        "aria-label": "מעבר לפרק",
+        onchange: (e) => { step = Number(e.target.value); saveDraft(); render(); window.scrollTo({ top: 0, behavior: "smooth" }); },
+      });
+      list.forEach((s, i) => {
+        const opt = el("option", { value: String(i) }, i === 0 ? "התחלה" : `${i}. ${s.title}`);
+        if (i === step) opt.selected = true;
+        select.append(opt);
+      });
+      return el("div", {}, head, el("div", { class: "jump-wrap" }, select));
+    }
+    return head;
   }
 
   function renderSection(section, index) {
@@ -237,6 +257,15 @@ function buildForm(FORM) {
           {},
           el("h3", {}, section.title),
           section.sub ? el("p", { class: "sub" }, section.sub) : null,
+          section.who || section.minutes
+            ? el(
+                "p",
+                { class: "who" },
+                section.who ? "עונים: " + section.who : null,
+                section.who && section.minutes ? " · " : null,
+                section.minutes ? `כ־${section.minutes} דק׳` : null,
+              )
+            : null,
         ),
       ),
       body,
@@ -272,7 +301,7 @@ function buildForm(FORM) {
             class: "skip" + (on ? " on" : ""),
             onclick: () => setUnknown(q, !on),
           },
-          on ? "✓ סומן «לא יודע/ת» — לחיצה לביטול" : "לא יודע/ת · מישהו אחר יענה",
+          on ? (FORM.unknownOnLabel || "✓ סומן «לא יודע/ת» — לחיצה לביטול") : (FORM.unknownLabel || "לא יודע/ת · מישהו אחר יענה"),
         ),
       );
     }
@@ -307,9 +336,10 @@ function buildForm(FORM) {
           rows: q.rows || 4,
           placeholder: q.placeholder || "",
           disabled: unknown || undefined,
-          oninput: (e) => commit(e.target.value),
+          oninput: (e) => { autoGrow(e.target); commit(e.target.value); },
         });
         ta.value = unknown ? "" : state[q.key] || "";
+        setTimeout(() => autoGrow(ta), 0); // after it is in the DOM
         return ta;
       }
 
@@ -509,6 +539,12 @@ function buildForm(FORM) {
     return box;
   }
 
+  function autoGrow(ta) {
+    if (!ta.isConnected) return;
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight + 2, 600) + "px";
+  }
+
   function totalBytes() {
     return Object.values(files).flat().reduce((sum, f) => sum + f.size, 0);
   }
@@ -586,6 +622,7 @@ function buildForm(FORM) {
   }
 
   function validateStep() {
+    if (FORM.skipRequired) return null;
     const list = steps();
     const current = list[step];
     let firstBad = null;
@@ -631,6 +668,7 @@ function buildForm(FORM) {
   /* -------------------------------------------------------------  submit  */
 
   function validate() {
+    if (FORM.skipRequired) return null;
     let firstBad = null;
     for (const q of [...FORM.metaQuestions, ...allQuestions()]) {
       if (!isVisible(q) || !q.required) continue;
@@ -841,6 +879,8 @@ function buildForm(FORM) {
   /* ---------------------------------------------------------------  boot  */
 
   const restored = loadDraft();
+  if (!restored && FORM.initialState) Object.assign(state, FORM.initialState);
+  if (FORM.meeting) document.body.classList.add("meeting");
   render();
 
   if (restored) {

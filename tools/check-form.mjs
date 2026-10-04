@@ -7,9 +7,17 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
 globalThis.buildForm = () => {}; // the schema calls it only when a document exists
-const { FORM, ROLE, ROLE_ALL } = require("../app-spec.form.js");
+const { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA } = require("../app-spec.form.js");
 
 const problems = [];
+
+// Meeting mode must cover every chapter exactly once, before we mutate FORM below.
+const ids = FORM.sections.map((s) => s.id);
+for (const s of FORM.sections) if (!s.id) problems.push(`section "${s.title}" has no id`);
+const agendaIds = MEETING_AGENDA.map((a) => a.id);
+for (const id of ids) if (!agendaIds.includes(id)) problems.push(`meeting agenda misses section "${id}"`);
+for (const id of agendaIds) if (!ids.includes(id)) problems.push(`meeting agenda has unknown section "${id}"`);
+if (new Set(agendaIds).size !== agendaIds.length) problems.push("meeting agenda lists a section twice");
 const keys = new Map();
 const all = [...FORM.metaQuestions.map((q) => ({ q, s: "meta" })),
   ...FORM.sections.flatMap((s) => s.questions.map((q) => ({ q, s: s.title })))];
@@ -57,6 +65,21 @@ for (const r of roles) {
 const files = all.filter(({ q }) => q.type === "file").map(({ q }) => q.key);
 console.log(`\nfile questions: ${files.join(", ")}`);
 console.log(`total questions: ${all.length} (meta ${FORM.metaQuestions.length})`);
+
+// Meeting mode: apply the transform and re-check keys (notes_* must not collide).
+try {
+  applyMeetingMode(FORM);
+  const mkeys = [...FORM.metaQuestions, ...FORM.sections.flatMap((s) => s.questions)].map((q) => q.key);
+  const dups = mkeys.filter((k, i) => mkeys.indexOf(k) !== i);
+  if (dups.length) problems.push(`meeting mode duplicate keys: ${dups.join(", ")}`);
+  const hidden = FORM.sections.filter((s) => typeof s.showIf === "function");
+  if (hidden.length) problems.push("meeting mode left a chapter condition in place");
+  const minutes = FORM.sections.reduce((n, s) => n + (s.minutes || 0), 0);
+  console.log(`\nmeeting mode: ${FORM.sections.length} chapters in agenda order, ${mkeys.length} questions, ~${minutes} min`);
+  console.log(`  ${FORM.sections.map((s, i) => `${i + 1}. ${s.title} (${s.minutes}׳)`).join("\n  ")}`);
+} catch (e) {
+  problems.push(`applyMeetingMode threw: ${e.message}`);
+}
 
 if (problems.length) {
   console.error("\n❌ problems:\n - " + problems.join("\n - "));

@@ -83,6 +83,7 @@ const FORM = {
 
     /* ================================================== 1. התמונה הגדולה */
     {
+      id: "big",
       title: "התמונה הגדולה",
       sub: "למה עושים את זה, ואיך נדע שהצליח",
       showIf: forRoles(ROLE.mgmt, ROLE.sales),
@@ -120,6 +121,7 @@ const FORM = {
 
     /* ============================================== 2. הביקור אצל הלקוח */
     {
+      id: "visit",
       title: "הביקור אצל הלקוח, שלב אחרי שלב",
       sub: "איך זה באמת קורה בשטח",
       showIf: forRoles(ROLE.agent, ROLE.sales),
@@ -184,6 +186,7 @@ const FORM = {
 
     /* ================================================== 3. תנאי האשראי */
     {
+      id: "terms",
       title: "תנאי האשראי — הלב של החישוב",
       sub: "התשובות כאן קובעות איך האפליקציה תחשב",
       showIf: forRoles(ROLE.fin),
@@ -237,6 +240,7 @@ const FORM = {
 
     /* ================================================== 4. כללי הצ׳קים */
     {
+      id: "checks",
       title: "כללי הצ׳קים — מה מותר ומה לא",
       sub: "מה האפליקציה צריכה לבדוק בכל צ׳ק, מעבר לתאריך",
       showIf: forRoles(ROLE.fin),
@@ -293,6 +297,7 @@ const FORM = {
 
     /* ======================================================= 5. במשרד */
     {
+      id: "office",
       title: "במשרד — מה קורה אחרי הביקור",
       sub: "מהדיווח של הסוכן ועד שהכסף רשום על הלקוח",
       showIf: forRoles(ROLE.fin),
@@ -347,6 +352,7 @@ const FORM = {
 
     /* ============================================== 6. מערכות ומחשוב */
     {
+      id: "it",
       title: "מערכות ומחשוב — למי שמכיר",
       sub: "שאלות למי שאחראי על המחשוב או עובד מול ספק התוכנה",
       showIf: forRoles(ROLE.it),
@@ -387,6 +393,7 @@ const FORM = {
 
     /* ===================================== 7. הסוכנים, הטלפונים והשטח */
     {
+      id: "phones",
       title: "הסוכנים, הטלפונים והשטח",
       sub: "כדי שהאפליקציה תתאים למי שישתמש בה בפועל",
       showIf: forRoles(ROLE.agent, ROLE.sales),
@@ -426,6 +433,7 @@ const FORM = {
 
     /* ============================== 8. מה האפליקציה צריכה להציג ולהפיק */
     {
+      id: "outputs",
       title: "מה האפליקציה צריכה להציג, להתריע ולהפיק",
       sub: "דמיינו אותה ביד של הסוכן",
       showIf: forRoles(ROLE.mgmt),
@@ -465,6 +473,7 @@ const FORM = {
 
     /* ====================================================== 9. לסיום */
     {
+      id: "end",
       title: "לסיום",
       sub: "שתי דקות אחרונות",
       showIf: function (s) { return Array.isArray(s.roles) && s.roles.length > 0; },
@@ -482,5 +491,75 @@ const FORM = {
   ],
 };
 
+/* ---------------------------------------------------------------------------
+   Meeting mode — app-spec.html?mode=meeting
+
+   Meir shares his screen on Zoom and types while the client's people talk.
+   Chapters follow the meeting agenda (the agent first, so nobody "corrects"
+   him; finance next; management last), no role step, nothing required, a
+   notes field per chapter, and hints on who answers and for how long.
+   --------------------------------------------------------------------------- */
+
+const MEETING_AGENDA = [
+  { id: "visit",   who: "הסוכן/ת — כולם מקשיבים, לא מתקנים", minutes: 15 },
+  { id: "phones",  who: "הסוכן/ת (ואז הסוכן יכול ללכת)",        minutes: 5 },
+  { id: "terms",   who: "ליאת ורז — לעצור על הדוגמה המספרית",  minutes: 15 },
+  { id: "checks",  who: "ליאת ורז",                              minutes: 10 },
+  { id: "office",  who: "ליאת — עם האקסל פתוח על המסך",         minutes: 15 },
+  { id: "outputs", who: "רז (הנהלה)",                            minutes: 10 },
+  { id: "it",      who: "מחשוב — או רק לקבל שם וטלפון",         minutes: 5 },
+  { id: "big",     who: "רז / הנהלה",                            minutes: 5 },
+  { id: "end",     who: "כולם",                                  minutes: 5 },
+];
+
+function applyMeetingMode(form) {
+  const byId = {};
+  form.sections.forEach(function (s) { byId[s.id] = s; });
+
+  form.sections = MEETING_AGENDA.map(function (item, i) {
+    const s = byId[item.id];
+    if (!s) throw new Error("meeting agenda references unknown section: " + item.id);
+    s.showIf = undefined; // every chapter, in agenda order
+    s.who = item.who;
+    s.minutes = item.minutes;
+    s.questions = s.questions.concat([
+      { key: "notes_" + item.id, type: "long", rows: 2, allowUnknown: false,
+        label: "הערות מהפגישה לפרק הזה (לא חובה)",
+        placeholder: "דברים שנאמרו ולא התאימו לאף שאלה, מי אמר, מה לברר" },
+    ]);
+    return s;
+  });
+
+  form.storageKey = "app_spec_meeting";
+  form.meeting = true;
+  form.skipRequired = true;
+  form.jumpMenu = true;
+  form.unknownLabel = "לא ידוע בפגישה · לברר אחר כך";
+  form.unknownOnLabel = "✓ סומן «לברר אחר כך» — לחיצה לביטול";
+  form.metaTitle = "פרטי הפגישה";
+  form.metaSub = "שתי שורות ואפשר להתחיל";
+  form.metaQuestions = [
+    { key: "filledBy", type: "short", label: "מנחה הפגישה", allowUnknown: false },
+    { key: "clientContact", type: "short", allowUnknown: false,
+      label: "מי משתתף בפגישה (שמות ותפקידים)",
+      placeholder: "ליאת (גבייה), רז (כספים), שם הסוכן, IT" },
+  ];
+  form.initialState = { filledBy: "מאיר לביא", roleTitle: "מנחה הפגישה" };
+  form.renderOverview = function (sections, state, el) {
+    const box = el("div", { class: "overview" });
+    const total = sections.reduce(function (n, s) { return n + (s.minutes || 0); }, 0);
+    box.append(el("h4", {}, "סדר הפגישה"));
+    box.append(el("p", {}, `${sections.length} פרקים · כ־${total} דקות · אפשר לקפוץ בין פרקים מהתפריט למעלה · שמירת עותק בכל רגע מהקישור למטה.`));
+    const ul = el("ul", { class: "agenda" });
+    sections.forEach(function (s, i) {
+      ul.append(el("li", {}, el("span", {}, `${i + 1}. ${s.title}`), el("span", {}, `${s.who ? s.who.split(" — ")[0] : ""} · ${s.minutes} דק׳`)));
+    });
+    box.append(ul);
+    return box;
+  };
+  return form;
+}
+
+if (typeof location !== "undefined" && /[?&]mode=meeting(&|$)/.test(location.search)) applyMeetingMode(FORM);
 if (typeof document !== "undefined") buildForm(FORM);
-if (typeof module !== "undefined") module.exports = { FORM, ROLE, ROLE_ALL };
+if (typeof module !== "undefined") module.exports = { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA };
