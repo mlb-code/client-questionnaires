@@ -11,11 +11,13 @@ No framework, no build step. Edit the files, push, and GitHub Pages serves them.
 | file | what it is |
 | --- | --- |
 | `index.html` | landing page with a link to each questionnaire |
-| `app-spec.html` | questionnaire 1 — collection app characterization (7 sections) |
+| `app-spec.html` | questionnaire 1 — collection app characterization. Page shell only; the questions live in `app-spec.form.js` |
+| `app-spec.form.js` | the 9 chapters / 97 questions of questionnaire 1, routed by the respondent's role (see below) |
 | `videos.html` | questionnaire 2 — training videos, one submission per department |
 | `shared.css` | the whole design system |
-| `shared.js` | form engine: rendering, autosave, validation, files, submit. **CONFIG lives at the top.** |
+| `shared.js` | form engine: rendering, autosave, validation, files, submit, wizard mode, "לא יודע/ת", no-server fallback. **CONFIG lives at the top.** |
 | `apps-script/Code.gs` | the backend — pasted into script.google.com, not deployed from here |
+| `tools/check-form.mjs` | `node tools/check-form.mjs` — validates the schema (duplicate keys, broken conditions) and prints each role's path |
 
 ## The two values that must be filled in
 
@@ -28,8 +30,10 @@ const CONFIG = {
 };
 ```
 
-Until `APPS_SCRIPT_URL` is set, submitting shows a Hebrew notice instead of failing
-silently. Leaving `DRIVE_UPLOAD_LINK` untouched hides the "upload it directly" link
+Until `APPS_SCRIPT_URL` is set, submitting opens a **fallback screen** with the full
+answers as text and three buttons — download a `.txt`, open a `mailto:` to
+`CONFIG.FALLBACK_EMAIL`, copy. The questionnaire is therefore usable from day one;
+the backend only adds the Sheet row, the Drive upload and the automatic email. Leaving `DRIVE_UPLOAD_LINK` untouched hides the "upload it directly" link
 and shows an email fallback instead — so nothing looks broken either way.
 
 `DRIVE_UPLOAD_LINK` points at a **dedicated "העלאות גדולות" folder**, shared as
@@ -38,6 +42,35 @@ folders: anyone holding that link can see and delete everything in the folder it
 opens, and the answer folders hold other clients' material.
 
 And in `apps-script/Code.gs`: the three folder IDs and the Sheet ID.
+
+## Questionnaire 1: chapters by role, one chapter per screen
+
+The respondents are not technical, and no single person at the client knows the
+whole process. So the first step asks who is filling the form (`roles`, multi),
+and each chapter declares `showIf: forRoles(...)`:
+
+| role | chapters | questions |
+| --- | --- | --- |
+| הנהלה | התמונה הגדולה · מה האפליקציה צריכה להציג · לסיום | 20 |
+| כספים וגבייה | תנאי האשראי · כללי הצ׳קים · במשרד · לסיום | 34 (+7 conditional) |
+| מכירות וניהול סוכנים | התמונה הגדולה · הביקור · הסוכנים והטלפונים · לסיום | 36 |
+| סוכן/ת שטח | הביקור · הסוכנים והטלפונים · לסיום | 27 |
+| מחשוב / ספק התוכנה | מערכות ומחשוב · לסיום | 12 |
+
+`wizard: true` renders one chapter per screen; the sticky button reads «לפרק הבא»
+until the last chapter, then «שליחת השאלון». Required questions are validated per
+step. The step is saved with the draft, so a closed tab reopens where it left off.
+
+`allowUnknown: true` adds a «לא יודע/ת · מישהו אחר יענה» toggle under every
+non-file question. It stores the literal string `לא יודע/ת`, counts as answered,
+and reaches the Sheet verbatim — which is the point: it tells Meir exactly which
+questions still need a different person.
+
+Questions are phrased about *what happens* (who approves, what the office types,
+whether there is reception in the stores), never about software. The technical
+decisions (login method, offline, ERP integration path, OCR fields, retention) are
+inferred from those answers; the mapping lives in Meir's internal notes, outside
+this repo.
 
 ## How a question is defined
 
@@ -54,8 +87,18 @@ renders it, which is why both forms behave identically.
   cols2: true,                  // lay options out in two columns on wide screens
   accept: "image/*,.pdf",       // file
   driveNote: true,              // show the >20MB fallback note
+  example: "שוטף+30, שוטף+60",   // rendered as "לדוגמה: …" under the help line
+  allowUnknown: false,          // per-question override of FORM.allowUnknown
+  fileLabel: "צילום מסך",       // file: the button text
   showIf: (s) => s.other === "כן" }   // conditional
 ```
+
+A section may also carry `showIf(state)` (chapter-level condition) and `intro`
+(a highlighted paragraph above its first question).
+
+The payload's `answers[]` carry `section` (the chapter title) and `meta.role`
+(role title + chosen role categories); `Code.gs` prints chapter headings in the
+email and writes the role into its own column (`FIXED_HEADERS`).
 
 ## Limits, and why
 

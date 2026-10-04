@@ -407,3 +407,114 @@ input.invalid, textarea.invalid, .options.invalid {
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ====================================================================
+   Wizard mode (one chapter per screen), "לא יודע/ת" toggle, fallback
+   ==================================================================== */
+
+.step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 0 4px;
+}
+.step-label { font-size: 13px; font-weight: 700; color: var(--brand); }
+.step-dots { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.step-dots .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ink-100);
+  transition: background 0.2s, transform 0.2s;
+}
+.step-dots .dot.done { background: var(--brand-100); }
+.step-dots .dot.on { background: var(--brand); transform: scale(1.25); }
+
+.section-intro {
+  margin: 14px 0 2px;
+  padding: 12px 14px;
+  background: var(--brand-50);
+  color: var(--brand);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.q-example {
+  font-size: 13px;
+  color: var(--ink-500);
+  margin: -4px 0 10px;
+  font-style: normal;
+}
+.q-example::before { content: "↳ "; color: var(--ink-300); }
+
+/* The "I don't know" toggle: looks like a quiet link, becomes a chip when on. */
+.skip {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-500);
+  background: none;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  padding: 5px 10px;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  -webkit-tap-highlight-color: transparent;
+}
+.skip:hover { color: var(--brand); }
+.skip.on {
+  text-decoration: none;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-color: #efdca6;
+  font-weight: 700;
+}
+.q-unknown .q-label { color: var(--ink-500); }
+.options.muted .opt { opacity: 0.45; }
+input:disabled, textarea:disabled { background: var(--ink-50); color: var(--ink-300); }
+
+/* Chapter overview shown under the role picker on the first step. */
+.overview {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-top: 18px;
+  padding: 18px 20px;
+}
+.overview h4 { margin: 0 0 4px; font-size: 15px; }
+.overview p { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-500); }
+.overview ol { margin: 0; padding-inline-start: 22px; }
+.overview li { padding: 6px 0; border-bottom: 1px solid var(--ink-100); font-size: 14.5px; }
+.overview li:last-child { border-bottom: 0; }
+.overview li small { color: var(--ink-500); margin-inline-start: 6px; }
+.overview .empty { color: var(--warn); font-weight: 600; }
+
+/* Sticky bar: "הקודם" next to the primary button in wizard mode. */
+.bar-row { display: flex; gap: 10px; align-items: stretch; }
+.bar-row .btn-primary { flex: 1; }
+#prevBtn { min-width: 96px; padding: 0 16px; }
+#prevBtn[hidden] { display: none; }
+
+/* Fallback / copy screen */
+.summary {
+  width: 100%;
+  min-height: 260px;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-700);
+  background: var(--ink-50);
+  border: 1.5px solid var(--ink-100);
+  border-radius: 12px;
+  padding: 12px 14px;
+  resize: vertical;
+  text-align: start;
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }
+.btn-row .btn { min-height: 48px; font-size: 15px; }
+.result-card.wide { text-align: start; }
+.result-card.wide h2, .result-card.wide > p.center { text-align: center; }

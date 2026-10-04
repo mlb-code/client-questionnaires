@@ -52,7 +52,8 @@ const FIXED_HEADERS = [
   'חותמת זמן',
   'שאלון',
   'ממלא השאלון',
-  'איש הקשר בחברה',
+  'תפקיד',
+  'ליצירת קשר',
   'קבצים שהועלו',
   'JSON מלא',
 ];
@@ -182,9 +183,10 @@ function appendRow(form, answers, meta, saved, payload) {
   row[0] = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'dd/MM/yyyy HH:mm');
   row[1] = FORM_NAMES_HE[form] || form;
   row[2] = meta.filledBy || '';
-  row[3] = meta.clientContact || '';
-  row[4] = fileSummary;
-  row[5] = JSON.stringify(payload.answers || []);
+  row[3] = meta.role || '';
+  row[4] = meta.clientContact || '';
+  row[5] = fileSummary;
+  row[6] = JSON.stringify(payload.answers || []);
 
   answers.forEach(function (item) {
     const idx = headers.indexOf(item.q);
@@ -207,9 +209,19 @@ function escapeHtml(text) {
 function sendEmail(form, answers, meta, saved) {
   const formName = FORM_NAMES_HE[form] || form;
 
+  let lastSection = null;
   const rows = answers.map(function (item) {
     const answer = escapeHtml(item.a).replace(/\n/g, '<br>') || '<i style="color:#9aa3b8">לא נענה</i>';
+    let heading = '';
+    if (item.section && item.section !== lastSection) {
+      lastSection = item.section;
+      heading =
+        '<tr><td colspan="2" style="padding:14px 14px 6px;background:#eef3fb;color:#14356e;font-weight:700;font-size:14px">' +
+        escapeHtml(item.section) +
+        '</td></tr>';
+    }
     return (
+      heading +
       '<tr>' +
       '<td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;vertical-align:top;width:45%;color:#35405a;font-weight:600">' +
       escapeHtml(item.q) +
@@ -240,7 +252,8 @@ function sendEmail(form, answers, meta, saved) {
     '</div>' +
     '<div style="padding:18px 24px;background:#eef3fb;font-size:14px;color:#35405a">' +
     '<b>ממלא השאלון:</b> ' + escapeHtml(meta.filledBy || '—') + '<br>' +
-    '<b>איש הקשר בחברה:</b> ' + escapeHtml(meta.clientContact || '—') + '<br>' +
+    '<b>תפקיד:</b> ' + escapeHtml(meta.role || '—') + '<br>' +
+    '<b>ליצירת קשר:</b> ' + escapeHtml(meta.clientContact || '—') + '<br>' +
     '<b>נשלח בתאריך:</b> ' + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'dd/MM/yyyy HH:mm') +
     '</div>' +
     '<table style="width:100%;border-collapse:collapse;font-size:14px">' + rows + '</table>' +

@@ -3,7 +3,12 @@
 
    Each page declares a FORM schema and calls buildForm(FORM). Everything else
    (rendering, autosave, validation, file handling, submit) lives here so the
-   two questionnaires cannot drift apart in behaviour.
+   questionnaires cannot drift apart in behaviour.
+
+   Optional FORM flags (all default off, so older pages keep working):
+     wizard: true        one chapter per screen, "הבא / הקודם" in the sticky bar
+     allowUnknown: true  every non-file question gets a "לא יודע/ת" toggle
+     sections[i].showIf  chapter-level condition (e.g. by the respondent's role)
    --------------------------------------------------------------------------- */
 
 /* =====================  CONFIG — Meir edits these two  ===================== */
@@ -15,6 +20,9 @@ const CONFIG = {
   // Shared Drive folder link for files too large to upload through the form.
   // Leave as-is to hide the "upload it directly" note entirely.
   DRIVE_UPLOAD_LINK: "DRIVE_UPLOAD_LINK",
+
+  // Where the no-server fallback ("שליחה במייל") addresses the answers.
+  FALLBACK_EMAIL: "meir@ai-lab.co.il",
 };
 
 /* ==========================  LIMITS  ====================================== */
@@ -29,6 +37,11 @@ const LIMITS = {
   // pointing at the Drive folder instead.
   MAX_TOTAL_BYTES: 25 * 1024 * 1024,
 };
+
+/* The sentinel stored when a respondent marks a question "לא יודע/ת". It is a
+   real answer (the question counts as done) and it reaches the Sheet verbatim,
+   so Meir can see exactly which questions still need a different person. */
+const UNKNOWN = "לא יודע/ת";
 
 /* ==========================  small helpers  =============================== */
 
@@ -68,9 +81,12 @@ function buildForm(FORM) {
   // be serialised into localStorage, so drafts restore text only (and we say so).
   const state = {};
   const files = {}; // key -> File[]
+  let step = 0; // wizard only: 0 = the meta block, 1..n = visible chapters
 
   const formEl = $("#form");
   const progressFill = $("#progress");
+  const submitBtn = $("#submitBtn");
+  const prevBtn = $("#prevBtn");
 
   /* -----------------------------------------------------------  autosave  */
 
@@ -80,7 +96,7 @@ function buildForm(FORM) {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ savedAt: new Date().toISOString(), state }),
+        JSON.stringify({ savedAt: new Date().toISOString(), state, step }),
       );
     } catch (_) {
       // Private mode or a full quota. The form still works; only the safety net is gone.
@@ -94,6 +110,7 @@ function buildForm(FORM) {
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed.state !== "object") return false;
       Object.assign(state, parsed.state);
+      if (Number.isInteger(parsed.step)) step = parsed.step;
       return Object.keys(parsed.state).length > 0;
     } catch (_) {
       return false;
@@ -111,14 +128,33 @@ function buildForm(FORM) {
 
   /* ------------------------------------------------------------  visible  */
 
-  const allQuestions = () => FORM.sections.flatMap((s) => s.questions);
+  const isSectionVisible = (s) => (typeof s.showIf === "function" ? !!s.showIf(state) : true);
+  const visibleSections = () => FORM.sections.filter(isSectionVisible);
+  const allQuestions = () => visibleSections().flatMap((s) => s.questions);
   const isVisible = (q) => (typeof q.showIf === "function" ? !!q.showIf(state) : true);
+  const isUnknown = (q) => state[q.key] === UNKNOWN;
 
   function hasAnswer(q) {
     const v = state[q.key];
     if (q.type === "file") return (files[q.key] || []).length > 0;
+    if (v === UNKNOWN) return true;
     if (q.type === "multi") return Array.isArray(v) && v.length > 0;
     return v !== undefined && v !== null && String(v).trim() !== "";
+  }
+
+  /* Wizard steps: the meta block first, then every chapter the respondent's
+     answers (usually their role) make visible. Recomputed on every render, so
+     changing the role on step 0 reshapes the rest of the path. */
+  function steps() {
+    return [
+      {
+        meta: true,
+        title: FORM.metaTitle || "פרטי מילוי",
+        sub: FORM.metaSub || "מי יושב מול השאלון הזה",
+        questions: FORM.metaQuestions,
+      },
+      ...visibleSections(),
+    ];
   }
 
   /* -------------------------------------------------------------  render  */
@@ -126,23 +162,47 @@ function buildForm(FORM) {
   function render() {
     formEl.replaceChildren();
 
-    // Meta block: who is filling this in, and with whom.
-    formEl.append(
-      renderSection(
-        {
-          title: FORM.metaTitle || "פרטי מילוי",
-          sub: FORM.metaSub || "מי יושב מול השאלון הזה",
-          questions: FORM.metaQuestions,
-        },
-        null,
-      ),
-    );
+    if (FORM.wizard) {
+      const list = steps();
+      if (step > list.length - 1) step = list.length - 1;
+      if (step < 0) step = 0;
+      const current = list[step];
 
-    FORM.sections.forEach((section, i) => {
-      formEl.append(renderSection(section, i + 1));
-    });
+      formEl.append(renderStepHeader(list));
+      formEl.append(renderSection(current, step === 0 ? null : step));
+      if (step === 0 && typeof FORM.renderOverview === "function") {
+        formEl.append(FORM.renderOverview(visibleSections(), state, el));
+      }
+      updateNav(list);
+    } else {
+      formEl.append(
+        renderSection(
+          {
+            title: FORM.metaTitle || "פרטי מילוי",
+            sub: FORM.metaSub || "מי יושב מול השאלון הזה",
+            questions: FORM.metaQuestions,
+          },
+          null,
+        ),
+      );
+      visibleSections().forEach((section, i) => {
+        formEl.append(renderSection(section, i + 1));
+      });
+    }
 
     updateProgress();
+  }
+
+  function renderStepHeader(list) {
+    const dots = el("div", { class: "step-dots", "aria-hidden": "true" });
+    list.forEach((_, i) => {
+      dots.append(el("span", { class: "dot" + (i === step ? " on" : i < step ? " done" : "") }));
+    });
+    const label =
+      step === 0
+        ? "התחלה"
+        : `פרק ${step} מתוך ${list.length - 1}`;
+    return el("div", { class: "step-head" }, el("span", { class: "step-label" }, label), dots);
   }
 
   function renderSection(section, index) {
@@ -150,6 +210,7 @@ function buildForm(FORM) {
     if (visible.length === 0) return document.createDocumentFragment();
 
     const body = el("div", { class: "section-body" });
+    if (section.intro) body.append(el("p", { class: "section-intro" }, section.intro));
     visible.forEach((q) => body.append(renderQuestion(q)));
 
     const badge =
@@ -183,7 +244,7 @@ function buildForm(FORM) {
   }
 
   function renderQuestion(q) {
-    const wrap = el("div", { class: "q", "data-key": q.key });
+    const wrap = el("div", { class: "q" + (isUnknown(q) ? " q-unknown" : ""), "data-key": q.key });
     const errId = "err-" + q.key;
 
     wrap.append(
@@ -195,19 +256,47 @@ function buildForm(FORM) {
       ),
     );
     if (q.help) wrap.append(el("p", { class: "q-help" }, q.help));
+    if (q.example) wrap.append(el("p", { class: "q-example" }, "לדוגמה: " + q.example));
 
     wrap.append(renderControl(q));
+
+    const unknownAllowed =
+      (q.allowUnknown !== undefined ? q.allowUnknown : !!FORM.allowUnknown) && q.type !== "file";
+    if (unknownAllowed) {
+      const on = isUnknown(q);
+      wrap.append(
+        el(
+          "button",
+          {
+            type: "button",
+            class: "skip" + (on ? " on" : ""),
+            onclick: () => setUnknown(q, !on),
+          },
+          on ? "✓ סומן «לא יודע/ת» — לחיצה לביטול" : "לא יודע/ת · מישהו אחר יענה",
+        ),
+      );
+    }
+
     wrap.append(el("div", { class: "err", id: errId }, "יש להשלים את השדה הזה"));
     return wrap;
   }
 
+  function setUnknown(q, on) {
+    if (on) state[q.key] = UNKNOWN;
+    else delete state[q.key];
+    saveDraft();
+    clearError(q.key);
+    render();
+  }
+
   function renderControl(q) {
+    const unknown = isUnknown(q);
     const commit = (value) => {
       state[q.key] = value;
       saveDraft();
       clearError(q.key);
       updateProgress();
-      // A conditional question may have just appeared or disappeared.
+      // A conditional question (or chapter) may have just appeared or disappeared.
       if (FORM.hasConditionals) rerenderPreservingFocus();
     };
 
@@ -217,9 +306,10 @@ function buildForm(FORM) {
           id: "in-" + q.key,
           rows: q.rows || 4,
           placeholder: q.placeholder || "",
+          disabled: unknown || undefined,
           oninput: (e) => commit(e.target.value),
         });
-        ta.value = state[q.key] || "";
+        ta.value = unknown ? "" : state[q.key] || "";
         return ta;
       }
 
@@ -227,9 +317,10 @@ function buildForm(FORM) {
         const inp = el("input", {
           type: "date",
           id: "in-" + q.key,
+          disabled: unknown || undefined,
           onchange: (e) => commit(e.target.value),
         });
-        inp.value = state[q.key] || "";
+        inp.value = unknown ? "" : state[q.key] || "";
         return inp;
       }
 
@@ -237,13 +328,13 @@ function buildForm(FORM) {
       case "yesno": {
         const options = q.type === "yesno" ? ["כן", "לא"] : q.options;
         const box = el("div", {
-          class: "options" + (q.cols2 ? " cols-2" : ""),
+          class: "options" + (q.cols2 ? " cols-2" : "") + (unknown ? " muted" : ""),
           id: "in-" + q.key,
           role: "radiogroup",
           "aria-label": q.label,
         });
-        options.forEach((opt, i) => {
-          const checked = state[q.key] === opt;
+        options.forEach((opt) => {
+          const checked = !unknown && state[q.key] === opt;
           const label = el(
             "label",
             { class: "opt" + (checked ? " checked" : "") },
@@ -252,6 +343,7 @@ function buildForm(FORM) {
               name: q.key,
               value: opt,
               checked: checked || undefined,
+              disabled: unknown || undefined,
               onchange: () => commit(opt),
             }),
             el("span", {}, opt),
@@ -262,9 +354,9 @@ function buildForm(FORM) {
       }
 
       case "multi": {
-        const chosen = Array.isArray(state[q.key]) ? state[q.key] : [];
+        const chosen = !unknown && Array.isArray(state[q.key]) ? state[q.key] : [];
         const box = el("div", {
-          class: "options" + (q.cols2 ? " cols-2" : ""),
+          class: "options" + (q.cols2 ? " cols-2" : "") + (unknown ? " muted" : ""),
           id: "in-" + q.key,
           role: "group",
           "aria-label": q.label,
@@ -279,6 +371,7 @@ function buildForm(FORM) {
                 type: "checkbox",
                 value: opt,
                 checked: checked || undefined,
+                disabled: unknown || undefined,
                 onchange: (e) => {
                   const next = new Set(Array.isArray(state[q.key]) ? state[q.key] : []);
                   e.target.checked ? next.add(opt) : next.delete(opt);
@@ -301,9 +394,10 @@ function buildForm(FORM) {
           id: "in-" + q.key,
           placeholder: q.placeholder || "",
           inputmode: q.inputmode,
+          disabled: unknown || undefined,
           oninput: (e) => commit(e.target.value),
         });
-        inp.value = state[q.key] || "";
+        inp.value = unknown ? "" : state[q.key] || "";
         return inp;
       }
     }
@@ -321,7 +415,7 @@ function buildForm(FORM) {
     const drop = el(
       "label",
       { class: "file-drop", for: "in-" + q.key },
-      el("strong", {}, "בחירת קבצים"),
+      el("strong", {}, q.fileLabel || "בחירת קבצים או צילום"),
       el(
         "span",
         {},
@@ -391,6 +485,7 @@ function buildForm(FORM) {
     });
 
     box.append(drop, chips);
+    refreshChips(); // files survive a wizard re-render; show them again
 
     if (q.driveNote && CONFIG.DRIVE_UPLOAD_LINK !== "DRIVE_UPLOAD_LINK") {
       box.append(
@@ -406,7 +501,7 @@ function buildForm(FORM) {
         el(
           "div",
           { class: "drive-note" },
-          `קבצים גדולים מ-${formatBytes(LIMITS.MAX_FILE_BYTES)}? שלחו אותם למייל meir@ai-lab.co.il ונצרף אותם לשאלון.`,
+          `קבצים גדולים מ-${formatBytes(LIMITS.MAX_FILE_BYTES)}? שלחו אותם למייל ${CONFIG.FALLBACK_EMAIL} ונצרף אותם לשאלון.`,
         ),
       );
     }
@@ -465,7 +560,72 @@ function buildForm(FORM) {
     const pct = visible.length ? Math.round((done / visible.length) * 100) : 0;
     if (progressFill) progressFill.style.width = pct + "%";
     const counter = $("#counter");
-    if (counter) counter.textContent = `${done} מתוך ${visible.length} שאלות`;
+    if (!counter) return;
+    if (FORM.wizard) {
+      const total = steps().length - 1;
+      const where = step === 0 ? "לפני הפרק הראשון" : `פרק ${step} מתוך ${total}`;
+      counter.textContent = `${where} · ${done} מתוך ${visible.length} שאלות נענו`;
+    } else {
+      counter.textContent = `${done} מתוך ${visible.length} שאלות`;
+    }
+  }
+
+  /* ------------------------------------------------------------  wizard  */
+
+  function updateNav(list) {
+    // Step 0 is never the last screen: before a role is chosen there are no
+    // chapters yet, and the button must still read "לפרק הבא".
+    const last = step > 0 && step === list.length - 1;
+    if (submitBtn) {
+      submitBtn.replaceChildren(
+        document.createTextNode(last ? FORM.submitLabel || "שליחת השאלון" : FORM.nextLabel || "לפרק הבא"),
+      );
+      submitBtn.classList.toggle("is-next", !last);
+    }
+    if (prevBtn) prevBtn.hidden = step === 0;
+  }
+
+  function validateStep() {
+    const list = steps();
+    const current = list[step];
+    let firstBad = null;
+    for (const q of current.questions) {
+      if (!isVisible(q) || !q.required) continue;
+      if (hasAnswer(q)) { clearError(q.key); continue; }
+      showError(q.key, q.type === "file" ? "יש לצרף לפחות קובץ אחד" : "יש להשלים את השדה הזה, או לסמן «לא יודע/ת»");
+      if (!firstBad) firstBad = q.key;
+    }
+    return firstBad;
+  }
+
+  function goNext() {
+    const bad = validateStep();
+    if (bad) {
+      focusBad(bad);
+      return;
+    }
+    const list = steps();
+    if (step === 0 && list.length === 1) {
+      toast("בחרו תפקיד כדי שנדע אילו פרקים להציג", "warn");
+      return;
+    }
+    step = Math.min(step + 1, list.length - 1);
+    saveDraft();
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goPrev() {
+    step = Math.max(step - 1, 0);
+    saveDraft();
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function focusBad(key) {
+    const node = document.querySelector(`[data-key="${key}"]`);
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
+    toast("יש שאלות חובה שלא הושלמו", "warn");
   }
 
   /* -------------------------------------------------------------  submit  */
@@ -503,11 +663,28 @@ function buildForm(FORM) {
     return v === undefined || v === null ? "" : String(v);
   }
 
+  function metaText(key) {
+    const v = state[key];
+    if (Array.isArray(v)) return v.join(", ");
+    return v === undefined || v === null ? "" : String(v);
+  }
+
+  function buildMeta() {
+    return {
+      filledBy: metaText("filledBy"),
+      clientContact: metaText("clientContact"),
+      role: [metaText("roleTitle"), metaText("roles")].filter(Boolean).join(" — "),
+      submittedAt: new Date().toISOString(),
+    };
+  }
+
   async function buildPayload() {
     const answers = [];
-    for (const q of allQuestions()) {
-      if (!isVisible(q)) continue;
-      answers.push({ q: q.label, a: answerToText(q) });
+    for (const s of visibleSections()) {
+      for (const q of s.questions) {
+        if (!isVisible(q)) continue;
+        answers.push({ q: q.label, a: answerToText(q), section: s.title });
+      }
     }
 
     const payloadFiles = [];
@@ -529,31 +706,101 @@ function buildForm(FORM) {
       form: FORM.resolveFormId(state),
       answers,
       files: payloadFiles,
-      meta: {
-        filledBy: state.filledBy || "",
-        clientContact: state.clientContact || "",
-        submittedAt: new Date().toISOString(),
-      },
+      meta: buildMeta(),
     };
+  }
+
+  /* A plain-text copy of the whole submission. Used by the no-server fallback
+     and offered after a successful send, so the respondent always leaves with
+     their own copy. */
+  function summaryText() {
+    const meta = buildMeta();
+    const lines = [];
+    lines.push(FORM.title || document.title);
+    lines.push("ממלא/ת: " + (meta.filledBy || "—"));
+    if (meta.role) lines.push("תפקיד: " + meta.role);
+    if (meta.clientContact) lines.push("ליצירת קשר: " + meta.clientContact);
+    lines.push("תאריך: " + new Date().toLocaleString("he-IL"));
+    for (const s of visibleSections()) {
+      lines.push("");
+      lines.push("== " + s.title + " ==");
+      for (const q of s.questions) {
+        if (!isVisible(q)) continue;
+        lines.push("• " + q.label);
+        lines.push("  " + (answerToText(q) || "—").replace(/\n/g, "\n  "));
+      }
+    }
+    return lines.join("\n");
+  }
+
+  function downloadSummary() {
+    const text = "﻿" + summaryText(); // BOM so Windows Notepad shows Hebrew correctly
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const who = (metaText("filledBy") || "ללא-שם").replace(/[\\/:*?"<>|\s]+/g, "-");
+    const stamp = new Date().toISOString().slice(0, 10);
+    const a = el("a", { href: url, download: `שאלון-אפיון-${who}-${stamp}.txt` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function copySummary() {
+    try {
+      await navigator.clipboard.writeText(summaryText());
+      toast("התשובות הועתקו — אפשר להדביק בוואטסאפ או במייל");
+    } catch (_) {
+      const box = $("#summaryBox");
+      if (box) { box.focus(); box.select(); }
+      toast("סמנו את הטקסט והעתיקו ידנית", "warn");
+    }
+  }
+
+  function mailtoHref() {
+    const subject = "שאלון אפיון — " + (metaText("filledBy") || "תשובות");
+    let body = summaryText();
+    // mailto bodies are capped by the mail client (≈2,000 chars is the safe
+    // floor). Keep the start, point at the downloadable file for the rest.
+    if (body.length > 1800) {
+      body = body.slice(0, 1700) + "\n\n[...] המשך התשובות בקובץ שהורדתם — אנא צרפו אותו למייל.";
+    }
+    return `mailto:${CONFIG.FALLBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  function showFallback() {
+    const screen = document.getElementById("screen-fallback");
+    if (!screen) {
+      toast("השאלון עדיין לא חובר לשרת. פנו למאיר.", "warn");
+      return;
+    }
+    const box = $("#summaryBox");
+    if (box) box.value = summaryText();
+    const mail = $("#mailBtn");
+    if (mail) mail.href = mailtoHref();
+    showScreen("fallback");
   }
 
   async function submit() {
     const bad = validate();
     if (bad) {
-      const node = document.querySelector(`[data-key="${bad}"]`);
-      if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
-      toast("יש שאלות חובה שלא הושלמו", "warn");
+      // In wizard mode the offending question may live on another step.
+      if (FORM.wizard) {
+        const list = steps();
+        const idx = list.findIndex((s) => s.questions.some((q) => q.key === bad));
+        if (idx > -1 && idx !== step) { step = idx; render(); }
+      }
+      focusBad(bad);
       return;
     }
 
     if (CONFIG.APPS_SCRIPT_URL === "PASTE_APPS_SCRIPT_URL_HERE") {
-      toast("השאלון עדיין לא חובר לשרת. פנו למאיר.", "warn");
+      showFallback();
       return;
     }
 
-    const btn = $("#submitBtn");
-    btn.disabled = true;
-    btn.replaceChildren(el("span", { class: "spinner" }), document.createTextNode("שולח…"));
+    submitBtn.disabled = true;
+    submitBtn.replaceChildren(el("span", { class: "spinner" }), document.createTextNode("שולח…"));
 
     try {
       const payload = await buildPayload();
@@ -578,13 +825,13 @@ function buildForm(FORM) {
       $("#failReason").textContent = String(err && err.message ? err.message : err).slice(0, 300);
       showScreen("fail");
     } finally {
-      btn.disabled = false;
-      btn.replaceChildren(document.createTextNode(FORM.submitLabel || "שליחת השאלון"));
+      submitBtn.disabled = false;
+      submitBtn.replaceChildren(document.createTextNode(FORM.submitLabel || "שליחת השאלון"));
     }
   }
 
   function showScreen(name) {
-    ["form", "success", "fail"].forEach((s) => {
+    ["form", "success", "fail", "fallback"].forEach((s) => {
       const node = document.getElementById("screen-" + s);
       if (node) node.classList.toggle("active", s === name);
     });
@@ -599,15 +846,25 @@ function buildForm(FORM) {
   if (restored) {
     toast("טיוטה שוחזרה — התשובות שמילאתם נשמרו במכשיר");
     // Files cannot be serialised, so a restored draft never carries them.
-    const hadFiles = allQuestions().some((q) => q.type === "file");
+    const hadFiles = FORM.sections.some((s) => s.questions.some((q) => q.type === "file"));
     if (hadFiles) {
       setTimeout(() => toast("שימו לב: קבצים שצורפו קודם יש לצרף מחדש", "warn"), 4400);
     }
   }
 
-  $("#submitBtn").addEventListener("click", submit);
+  submitBtn.addEventListener("click", () => {
+    if (FORM.wizard && (step === 0 || step < steps().length - 1)) goNext();
+    else submit();
+  });
+  if (prevBtn) prevBtn.addEventListener("click", goPrev);
+
   const retry = $("#retryBtn");
   if (retry) retry.addEventListener("click", () => showScreen("form"));
+  const back = $("#fallbackBackBtn");
+  if (back) back.addEventListener("click", () => showScreen("form"));
+
+  document.querySelectorAll("[data-action='download']").forEach((b) => b.addEventListener("click", downloadSummary));
+  document.querySelectorAll("[data-action='copy']").forEach((b) => b.addEventListener("click", copySummary));
 
   // Last line of defence against a closed tab mid-meeting.
   window.addEventListener("beforeunload", (e) => {

@@ -17,7 +17,7 @@
     <div class="brand-mark">AI</div>
     <div>
       <h1>שאלון אפיון — אפליקציית גבייה</h1>
-      <p>סוכני שטח · איסוף צ׳קים דחויים</p>
+      <p>סוכני שטח · צ׳קים דחויים · תנאי אשראי</p>
     </div>
   </div>
 </header>
@@ -29,19 +29,22 @@
   <div class="screen active" id="screen-form">
 
     <div class="intro">
-      <h2>לפני שמתחילים</h2>
-      <p>השאלון הזה נועד להבין בדיוק איך הגבייה עובדת אצלכם היום — כדי שהאפליקציה תדבר בשפה של השטח ולא בשפה של תוכנה.</p>
-      <p>הוא ממולא יחד, בשיחה. אין צורך לענות על הכול ברצף — התשובות נשמרות אוטומטית במכשיר, ואפשר לעצור ולחזור.</p>
+      <h2>רגע לפני שמתחילים</h2>
+      <p>אנחנו בונים אפליקציה שתעזור לסוכני השטח לדעת, עוד בחנות, אם ערימת הצ׳קים שקיבלו עומדת בתנאי האשראי של הלקוח — ומה לעשות אם לא.</p>
+      <p>כדי שהיא תדבר בשפה של השטח ולא בשפה של תוכנה, אנחנו צריכים להבין איך הגבייה עובדת אצלכם <b>באמת</b>. אין תשובות נכונות או לא נכונות.</p>
       <div class="notice notice-info">
-        <b>החלק הקריטי הוא פרק 2 — תנאי אשראי.</b>
-        ההגדרה המדויקת של «שוטף +» היא הלב של החישוב. אם אפשר, כדאי שאיש כספים יהיה בשיחה או שנקבל ממנו דוגמה מספרית.
+        <b>איך זה עובד:</b> בוחרים תפקיד, ומקבלים רק את הפרקים שרלוונטיים לך.
+        לא יודעים משהו? לוחצים «לא יודע/ת» וממשיכים. התשובות נשמרות אוטומטית במכשיר — אפשר לעצור באמצע ולחזור.
       </div>
     </div>
 
     <div id="form"></div>
 
     <div class="submit-bar">
-      <button class="btn btn-primary btn-block" id="submitBtn" type="button">שליחת השאלון</button>
+      <div class="bar-row">
+        <button class="btn btn-secondary" id="prevBtn" type="button" hidden>הקודם</button>
+        <button class="btn btn-primary" id="submitBtn" type="button">לפרק הבא</button>
+      </div>
       <p class="hint" id="counter"></p>
     </div>
   </div>
@@ -50,10 +53,30 @@
   <div class="screen" id="screen-success">
     <div class="result-card">
       <div class="result-icon ok">✓</div>
-      <h2>השאלון נשלח בהצלחה</h2>
-      <p>התשובות נשמרו והקבצים הועלו לתיקייה המשותפת.</p>
-      <p>עותק נשלח במייל. נחזור אליכם עם סיכום האפיון.</p>
-      <p style="margin-top:22px"><a class="btn btn-secondary" href="index.html">חזרה לרשימת השאלונים</a></p>
+      <h2>תודה! השאלון נשלח</h2>
+      <p>התשובות הגיעו אלינו. נחזור אליכם עם סיכום האפיון ושאלות המשך, אם יהיו.</p>
+      <div class="btn-row">
+        <button class="btn btn-secondary" type="button" data-action="download">הורדת עותק של התשובות</button>
+        <a class="btn btn-secondary" href="index.html">חזרה לרשימת השאלונים</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- -------------------------------------------- fallback (no server) -->
+  <div class="screen" id="screen-fallback">
+    <div class="result-card wide">
+      <div class="result-icon ok">✓</div>
+      <h2>סיימתם! עכשיו רק לשלוח</h2>
+      <p class="center">השאלון עדיין לא מחובר לשליחה אוטומטית, אז נשלח את התשובות בדרך פשוטה: הורידו את הקובץ ושלחו אותו למאיר במייל או בוואטסאפ, או לחצו «שליחה במייל».</p>
+      <textarea class="summary" id="summaryBox" readonly aria-label="סיכום התשובות"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" data-action="download">הורדת קובץ התשובות</button>
+        <a class="btn btn-secondary" id="mailBtn" href="#">שליחה במייל</a>
+        <button class="btn btn-secondary" type="button" data-action="copy">העתקה</button>
+      </div>
+      <p class="center" style="margin-top:16px;font-size:13px;color:#9aa3b8">
+        <button class="btn btn-secondary" id="fallbackBackBtn" type="button" style="min-height:40px;font-size:14px">חזרה לשאלון לתיקון</button>
+      </p>
     </div>
   </div>
 
@@ -62,247 +85,19 @@
     <div class="result-card">
       <div class="result-icon bad">!</div>
       <h2>השליחה נכשלה</h2>
-      <p>התשובות שלכם <b>לא אבדו</b> — הן שמורות במכשיר. אפשר לנסות שוב.</p>
+      <p>התשובות שלכם <b>לא אבדו</b> — הן שמורות במכשיר. אפשר לנסות שוב, או להוריד עותק ולשלוח אותו ידנית.</p>
       <p style="font-size:13px;color:#9aa3b8;direction:ltr" id="failReason"></p>
-      <p style="margin-top:22px"><button class="btn btn-primary" id="retryBtn" type="button">חזרה לשאלון וניסיון נוסף</button></p>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="retryBtn" type="button">חזרה לשאלון וניסיון נוסף</button>
+        <button class="btn btn-secondary" type="button" data-action="download">הורדת עותק של התשובות</button>
+      </div>
     </div>
   </div>
 
-  <p class="footer">AI Lab · שאלון אפיון פנימי</p>
+  <p class="footer">AI Lab · מאיר לביא · שאלון אפיון פנימי</p>
 </div>
 
 <script src="shared.js"></script>
-<script>
-const FORM = {
-  storageKey: "app_spec",
-  submitLabel: "שליחת השאלון",
-  hasConditionals: true,
-  resolveFormId: function () { return "app_spec"; },
-
-  metaQuestions: [
-    { key: "filledBy", type: "short", label: "ממלא השאלון", required: true,
-      placeholder: "שם מלא" },
-    { key: "clientContact", type: "short", label: "איש הקשר בחברה", required: true,
-      placeholder: "שם ותפקיד" },
-  ],
-
-  sections: [
-    /* ------------------------------------------------ 1. התהליך היום */
-    {
-      title: "התהליך היום",
-      sub: "איך גובים כסף כרגע, בלי קשר לטכנולוגיה",
-      questions: [
-        { key: "process_today", type: "long", required: true, rows: 5,
-          label: "תארו את תהליך הגבייה מהרגע שהסוכן יוצא לשטח ועד שהכסף נרשם במערכת",
-          help: "כולל: מה הסוכן לוקח איתו, מה הוא ממלא, למי הוא מוסר את הצ׳קים ומתי." },
-
-        { key: "agents_count", type: "short", required: true, inputmode: "numeric",
-          label: "כמה סוכני שטח פעילים היום?" },
-
-        { key: "visits_per_day", type: "single",
-          label: "כמה ביקורים מבצע סוכן ביום בממוצע?",
-          options: ["עד 5", "6–10", "11–15", "16–20", "מעל 20"], cols2: true },
-
-        { key: "checks_frequency", type: "single",
-          label: "בכמה מהביקורים מתקבלים צ׳קים?",
-          options: ["כמעט בכולם", "ברוב הביקורים", "בכמחצית", "במיעוט הביקורים"], cols2: true },
-
-        { key: "stack_size", type: "single",
-          label: "כמה צ׳קים יש בערימה טיפוסית?",
-          options: ["1–3", "4–6", "7–12", "מעל 12"], cols2: true },
-
-        { key: "solo_ratio", type: "short",
-          label: "מה החלוקה המשוערת בין צ׳קים של הסוחר עצמו (סולו) לצ׳קים של צד ג׳?",
-          placeholder: "לדוגמה: 30% סולו, 70% צד ג׳" },
-
-        { key: "today_problems", type: "long", required: true, rows: 4,
-          label: "מה הכי משתבש היום בתהליך הגבייה?",
-          help: "טעויות חוזרות, ויכוחים עם לקוחות, צ׳קים שחוזרים, עבודה כפולה במשרד." },
-
-        { key: "office_latency", type: "single", required: true,
-          label: "תוך כמה זמן מהביקור המשרד יודע מה נגבה בפועל?",
-          options: ["באותו יום", "1–3 ימים", "4–7 ימים", "מעל שבוע"], cols2: true },
-      ],
-    },
-
-    /* ------------------------------------------------- 2. תנאי אשראי */
-    {
-      title: "תנאי אשראי",
-      sub: "הפרק הקריטי — כאן נקבע כל החישוב",
-      questions: [
-        { key: "terms_definition", type: "long", required: true, rows: 4,
-          label: "איך מחלקת הכספים מגדירה «שוטף + N» במדויק?",
-          help: "מאיזה תאריך מתחילים לספור — תאריך החשבונית, סוף החודש, תאריך המשלוח?" },
-
-        { key: "terms_example", type: "long", required: true, rows: 4,
-          label: "דוגמה מספרית מלאה",
-          help: "חשבונית מיום 15/03 בתנאי שוטף+60 — מה תאריך הפירעון המאוחר ביותר שמותר לקבל? אנא פרטו את החישוב שלב אחר שלב." },
-
-        { key: "terms_scope", type: "single", required: true,
-          label: "התנאים נבדקים על כל צ׳ק בנפרד, או על ממוצע של הערימה?",
-          options: ["כל צ׳ק בנפרד", "ממוצע משוקלל של הערימה", "שילוב של השניים", "לא ידוע לי"] },
-
-        { key: "weighted_formula", type: "long", rows: 3,
-          label: "לפי איזו נוסחה מחושב הממוצע המשוקלל?",
-          help: "האם המשקל הוא סכום הצ׳ק? האם מזומן נספר כיום אפס?",
-          showIf: function (s) {
-            return s.terms_scope === "ממוצע משוקלל של הערימה" || s.terms_scope === "שילוב של השניים";
-          } },
-
-        { key: "tolerance", type: "yesno", required: true,
-          label: "האם קיים טווח סובלנות לחריגה קלה?", cols2: true },
-
-        { key: "tolerance_days", type: "short",
-          label: "כמה ימי חריגה מתקבלים בלי אישור מיוחד?",
-          inputmode: "numeric",
-          showIf: function (s) { return s.tolerance === "כן"; } },
-
-        { key: "violation_def", type: "long", required: true, rows: 3,
-          label: "מה נחשב חריגה שמחייבת אישור?" },
-
-        { key: "approver", type: "short", required: true,
-          label: "מי מאשר חריגה מתנאי האשראי?",
-          placeholder: "תפקיד, ואם אפשר גם שם" },
-
-        { key: "terms_vary", type: "yesno",
-          label: "האם תנאי האשראי שונים בין לקוחות?", cols2: true },
-
-        { key: "terms_tracks", type: "short",
-          label: "כמה מסלולי אשראי שונים קיימים בפועל?",
-          help: "לדוגמה: שוטף+30, שוטף+60, שוטף+90.",
-          showIf: function (s) { return s.terms_vary === "כן"; } },
-      ],
-    },
-
-    /* ----------------------------------------------- 3. נתונים וקבצים */
-    {
-      title: "נתונים וקבצים",
-      sub: "מאיפה האפליקציה תדע מה החוב ומה התנאים",
-      questions: [
-        { key: "erp_name", type: "short", required: true,
-          label: "באיזו מערכת מנוהלים חוב הלקוח ותנאי האשראי?",
-          placeholder: "שם המערכת + גרסה, למשל: פריוריטי 21" },
-
-        { key: "export_possible", type: "single", required: true,
-          label: "האם ניתן להפיק מהמערכת ייצוא יומי לאקסל?",
-          options: ["כן, אוטומטי", "כן, ידני", "לא", "לא ידוע"], cols2: true },
-
-        { key: "export_file", type: "file", driveNote: true,
-          accept: ".xlsx,.xls,.csv,.pdf,application/pdf",
-          label: "העלו קובץ ייצוא לדוגמה",
-          help: "אפשר להסתיר או להחליף שמות לקוחות — אנחנו צריכים לראות את מבנה הקובץ, לא את הנתונים." },
-
-        { key: "export_fields", type: "long", rows: 3,
-          label: "אילו שדות מופיעים בייצוא?",
-          help: "לדוגמה: מספר לקוח, שם, יתרת חוב, מסגרת אשראי, תנאי תשלום." },
-
-        { key: "customer_key", type: "single",
-          label: "איך מזוהה לקוח באופן ייחודי במערכת?",
-          options: ["ח.פ. / ע.מ.", "מספר לקוח פנימי", "שם בלבד", "אחר"], cols2: true },
-
-        { key: "api_available", type: "yesno",
-          label: "האם למערכת יש API או ממשק שילוב קיים?", cols2: true },
-      ],
-    },
-
-    /* -------------------------------------------- 4. הסוכנים והמכשירים */
-    {
-      title: "הסוכנים והמכשירים",
-      sub: "מי יחזיק את האפליקציה ביד",
-      questions: [
-        { key: "phone_ownership", type: "single", required: true,
-          label: "הטלפונים של הסוכנים",
-          options: ["של החברה", "אישיים", "מעורב"], cols2: true },
-
-        { key: "phone_os", type: "multi", required: true,
-          label: "אילו מערכות הפעלה?",
-          options: ["אנדרואיד", "אייפון"], cols2: true },
-
-        { key: "tech_comfort", type: "single",
-          label: "רמת הנוחות הטכנולוגית של הסוכנים",
-          options: ["גבוהה", "בינונית", "נמוכה", "מאוד משתנה בין סוכנים"], cols2: true },
-
-        { key: "languages", type: "multi",
-          label: "באילו שפות צריך שהאפליקציה תתמוך?",
-          options: ["עברית", "ערבית", "רוסית", "אנגלית"], cols2: true },
-
-        { key: "current_workarounds", type: "long", rows: 3,
-          label: "באילו עזרים הסוכנים משתמשים היום בשטח?",
-          help: "מחשבון, פנקס, וואטסאפ למשרד, אקסל בטלפון, טלפון לחשבת." },
-      ],
-    },
-
-    /* ------------------------------------------------ 5. כללי החלטה */
-    {
-      title: "כללי החלטה",
-      sub: "מה מותר לסוכן להחליט לבד",
-      questions: [
-        { key: "solo_policy", type: "yesno", required: true,
-          label: "האם קיימת מדיניות לגבי שיעור צ׳קים סולו בערימה?", cols2: true },
-
-        { key: "solo_cap", type: "short",
-          label: "מה התקרה המותרת לצ׳קים סולו?",
-          placeholder: "לדוגמה: עד 50% מסכום הגבייה",
-          showIf: function (s) { return s.solo_policy === "כן"; } },
-
-        { key: "max_postdate", type: "short", required: true,
-          label: "מה המרחק המקסימלי המותר לצ׳ק דחוי?",
-          placeholder: "לדוגמה: עד 120 יום קדימה" },
-
-        { key: "cash_allowed", type: "single",
-          label: "האם סוכן רשאי לקבל מזומן?",
-          options: ["כן, ללא הגבלה", "כן, עד תקרה", "לא"], cols2: true },
-
-        { key: "agent_overrides", type: "multi",
-          label: "מה הסוכן רשאי להחליט בשטח בלי אישור מראש?",
-          options: [
-            "לקבל ערימה שחורגת מעט מהתנאים",
-            "לסרב לצ׳ק",
-            "לבקש תשלום משלים במזומן",
-            "לפצל תשלום לשני ביקורים",
-            "כלום — כל חריגה מחייבת אישור",
-          ] },
-      ],
-    },
-
-    /* ----------------------------------------------- 6. תיעוד ובקרה */
-    {
-      title: "תיעוד ובקרה",
-      sub: "מי צריך לראות מה, ומתי",
-      questions: [
-        { key: "who_sees_history", type: "multi", required: true,
-          label: "מי צריך לראות את היסטוריית הביקורים?",
-          options: ["הסוכן עצמו", "מנהל מכירות", "מחלקת כספים", "הנהלה", "רואה חשבון"],
-          cols2: true },
-
-        { key: "reports", type: "long", rows: 4,
-          label: "מה צריך להופיע בדוח היומי, ומה בדוח השבועי?",
-          help: "אנא הפרידו בין השניים — למשל: יומי = מה נגבה ומאיזה לקוח; שבועי = חריגות ומגמות." },
-
-        { key: "retention", type: "long", rows: 2,
-          label: "האם יש דרישות לשמירת נתונים או רגולציה שצריך לעמוד בהן?",
-          help: "משך שמירה, גיבוי, מי רשאי למחוק, דרישות רו״ח." },
-      ],
-    },
-
-    /* --------------------------------------------------- 7. הצלחה */
-    {
-      title: "הצלחה",
-      sub: "איך נדע שזה עבד",
-      questions: [
-        { key: "pilot_success", type: "long", required: true, rows: 4,
-          label: "איזו תוצאה בסוף הפיילוט תגרום לכם להרחיב את המערכת לכל הסוכנים?",
-          help: "נסו להיות מספריים ככל האפשר." },
-
-        { key: "top_pains", type: "long", required: true, rows: 4,
-          label: "שלושת הכאבים הגדולים ביותר בתהליך הגבייה — מדורגים",
-          help: "1. הכי כואב · 2. · 3." },
-      ],
-    },
-  ],
-};
-
-buildForm(FORM);
-</script>
+<script src="app-spec.form.js"></script>
 </body>
 </html>
