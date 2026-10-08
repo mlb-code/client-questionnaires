@@ -881,6 +881,7 @@ function buildForm(FORM) {
   const restored = loadDraft();
   if (!restored && FORM.initialState) Object.assign(state, FORM.initialState);
   if (FORM.meeting) document.body.classList.add("meeting");
+  if (FORM.bodyClass) document.body.classList.add(FORM.bodyClass);
   render();
 
   if (restored) {

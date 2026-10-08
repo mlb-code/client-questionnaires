@@ -560,6 +560,69 @@ function applyMeetingMode(form) {
   return form;
 }
 
-if (typeof location !== "undefined" && /[?&]mode=meeting(&|$)/.test(location.search)) applyMeetingMode(FORM);
+/* ---------------------------------------------------------------------------
+   CFO mode — app-spec.html?for=cfo
+
+   One person (the client's CFO) is the single source for the whole spec, so he
+   gets every chapter and every question. No role step, his name and title
+   pre-filled, chapters ordered by what a CFO knows best (finance first, the
+   field last) with intros that make «לא יודע/ת» an easy way through.
+   --------------------------------------------------------------------------- */
+
+const CFO_PLAN = [
+  { id: "terms" },
+  { id: "checks" },
+  { id: "office" },
+  { id: "it",
+    intro: "אם משהו כאן טכני מדי — סמן «לא יודע/ת» ותן לנו שם של מי שמכיר. נשלים איתו בשיחה של 10 דקות." },
+  { id: "outputs" },
+  { id: "big" },
+  { id: "visit",
+    intro: "כאן אנחנו רוצים לראות את הביקור אצל הלקוח כפי שאתה מכיר אותו. אם אינך בטוח בפרט מסוים — «לא יודע/ת», ואנחנו נאמת מול סוכן אחד בשיחה קצרה." },
+  { id: "phones",
+    intro: "שאלות על הסוכנים והטלפונים. תשובה משוערת עדיפה על «לא יודע/ת»." },
+  { id: "end" },
+];
+
+function applyCfoMode(form, person) {
+  person = person || { name: "רז שוורץ", title: "סמנכ\"ל כספים" };
+  const byId = {};
+  form.sections.forEach(function (s) { byId[s.id] = s; });
+  form.sections = CFO_PLAN.map(function (item) {
+    const base = byId[item.id];
+    if (!base) throw new Error("cfo plan references unknown section: " + item.id);
+    return { id: base.id, title: base.title, sub: base.sub, intro: item.intro || base.intro, questions: base.questions };
+  });
+
+  form.storageKey = "app_spec_cfo";
+  form.bodyClass = "cfo";
+  form.metaTitle = "פרטים";
+  form.metaSub = "ממולא מראש — רק לאשר ולהמשיך";
+  form.metaQuestions = [
+    { key: "filledBy", type: "short", label: "שם", required: true, allowUnknown: false },
+    { key: "roleTitle", type: "short", label: "תפקיד", required: true, allowUnknown: false },
+    { key: "clientContact", type: "short", allowUnknown: false,
+      label: "טלפון או מייל לשאלת השלמה קצרה (לא חובה)" },
+  ];
+  form.initialState = { filledBy: person.name, roleTitle: person.title };
+  form.renderOverview = function (sections, state, el) {
+    const box = el("div", { class: "overview" });
+    const count = sections.reduce(function (n, s) {
+      return n + s.questions.filter(function (q) { return typeof q.showIf !== "function" || q.showIf(state); }).length;
+    }, 0);
+    box.append(el("h4", {}, "מה בשאלון"));
+    box.append(el("p", {}, `${sections.length} פרקים · כ־${count} שאלות · בערך ${Math.round(count * 0.5 / 5) * 5} דקות. אפשר לעצור ולחזור — התשובות נשמרות במכשיר.`));
+    const ol = el("ol", {});
+    sections.forEach(function (s) { ol.append(el("li", {}, s.title)); });
+    box.append(ol);
+    return box;
+  };
+  return form;
+}
+
+if (typeof location !== "undefined") {
+  if (/[?&]mode=meeting(&|$)/.test(location.search)) applyMeetingMode(FORM);
+  else if (/[?&]for=cfo(&|$)/.test(location.search)) applyCfoMode(FORM);
+}
 if (typeof document !== "undefined") buildForm(FORM);
-if (typeof module !== "undefined") module.exports = { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA };
+if (typeof module !== "undefined") module.exports = { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA, applyCfoMode, CFO_PLAN };

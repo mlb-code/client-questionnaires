@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
 globalThis.buildForm = () => {}; // the schema calls it only when a document exists
-const { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA } = require("../app-spec.form.js");
+const { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA, applyCfoMode, CFO_PLAN } = require("../app-spec.form.js");
 
 const problems = [];
 
@@ -65,6 +65,25 @@ for (const r of roles) {
 const files = all.filter(({ q }) => q.type === "file").map(({ q }) => q.key);
 console.log(`\nfile questions: ${files.join(", ")}`);
 console.log(`total questions: ${all.length} (meta ${FORM.metaQuestions.length})`);
+
+// CFO mode: a fresh copy of the schema (the transform mutates), then key checks.
+try {
+  delete require.cache[require.resolve("../app-spec.form.js")];
+  const fresh = require("../app-spec.form.js");
+  const cfo = applyCfoMode(fresh.FORM);
+  const ckeys = [...cfo.metaQuestions, ...cfo.sections.flatMap((s) => s.questions)].map((q) => q.key);
+  const cdups = ckeys.filter((k, i) => ckeys.indexOf(k) !== i);
+  if (cdups.length) problems.push(`cfo mode duplicate keys: ${cdups.join(", ")}`);
+  const st = { filledBy: "x", roleTitle: "y" };
+  const all = fresh.FORM.sections.length;
+  const missing = ["big","visit","terms","checks","office","it","phones","outputs","end"].filter((id) => !cfo.sections.some((s) => s.id === id));
+  if (missing.length) problems.push(`cfo mode misses chapters: ${missing.join(", ")}`);
+  const cvis = cfo.sections.flatMap((s) => s.questions.filter((q) => (typeof q.showIf === "function" ? q.showIf(st) : true)));
+  console.log(`\ncfo mode: ${cfo.sections.length} chapters, ${cvis.length} visible / ${ckeys.length - cfo.metaQuestions.length} questions, required ${cvis.filter((q) => q.required).length}`);
+  console.log(`  ${cfo.sections.map((s, i) => `${i + 1}. ${s.title} (${s.questions.length})`).join("\n  ")}`);
+} catch (e) {
+  problems.push(`applyCfoMode threw: ${e.message}`);
+}
 
 // Meeting mode: apply the transform and re-check keys (notes_* must not collide).
 try {
