@@ -569,20 +569,39 @@ function applyMeetingMode(form) {
    field last) with intros that make «לא יודע/ת» an easy way through.
    --------------------------------------------------------------------------- */
 
+/* Short CFO path (~20 min). Dropped questions are duplicates of another
+   chapter, decisions we make ourselves, or better asked in the follow-up call —
+   the list lives in Meir's internal notes so nothing is lost. */
 const CFO_PLAN = [
   { id: "terms" },
-  { id: "checks" },
-  { id: "office" },
-  { id: "it",
-    intro: "אם משהו כאן טכני מדי — סמן «לא יודע/ת» ותן לנו שם של מי שמכיר. נשלים איתו בשיחה של 10 דקות." },
-  { id: "outputs" },
-  { id: "big" },
+  { id: "checks", drop: ["third_party_share", "blacklist_how", "new_vs_old", "new_rules", "bounced"] },
+  { id: "office", drop: ["deposit", "office_pains"] },
+  { id: "it", title: "מערכות — בקצרה",
+    intro: "רק ארבע שאלות. אם משהו טכני מדי — «לא יודע/ת», ותן לנו שם של מי שמכיר.",
+    drop: ["it_system", "it_vendor", "it_exports", "it_integration_detail", "it_policy", "it_mobile"] },
+  { id: "outputs", drop: ["reports", "extra_wish"] },
+  { id: "big", drop: ["pilot_scope", "past_attempts", "goal_success"],
+    override: { scope_teams: { type: "short", rows: undefined,
+      example: "סוכני הפרטיות מול חנויות חשמל, סוכנים מוסדיים" } } },
   { id: "visit",
-    intro: "כאן אנחנו רוצים לראות את הביקור אצל הלקוח כפי שאתה מכיר אותו. אם אינך בטוח בפרט מסוים — «לא יודע/ת», ואנחנו נאמת מול סוכן אחד בשיחה קצרה." },
-  { id: "phones",
-    intro: "שאלות על הסוכנים והטלפונים. תשובה משוערת עדיפה על «לא יודע/ת»." },
-  { id: "end" },
+    intro: "הביקור אצל הלקוח, כפי שאתה מכיר אותו. אם אינך בטוח בפרט מסוים — «לא יודע/ת», ואנחנו נאמת מול סוכן בשיחה קצרה.",
+    drop: ["visit_pains", "gives_customer", "visit_time"],
+    override: { visit_story: { required: false, rows: 4 } } },
+  { id: "phones", intro: "תשובה משוערת עדיפה על «לא יודע/ת».",
+    drop: ["agent_apps", "agent_wish", "agent_fear"] },
+  { id: "end", drop: ["more_people", "call_ok"] },
 ];
+
+/** Rough minutes: open text is what takes time, choices are quick. */
+function estimateMinutes(questions) {
+  const secs = questions.reduce(function (t, q) {
+    if (q.type === "long") return t + 75;
+    if (q.type === "short") return t + 25;
+    if (q.type === "file") return t + 30;
+    return t + 15;
+  }, 0);
+  return Math.max(5, Math.round(secs / 60 / 5) * 5);
+}
 
 function applyCfoMode(form, person) {
   person = person || { name: "רז שוורץ", title: "סמנכ\"ל כספים" };
@@ -591,7 +610,18 @@ function applyCfoMode(form, person) {
   form.sections = CFO_PLAN.map(function (item) {
     const base = byId[item.id];
     if (!base) throw new Error("cfo plan references unknown section: " + item.id);
-    return { id: base.id, title: base.title, sub: base.sub, intro: item.intro || base.intro, questions: base.questions };
+    const drop = item.drop || [];
+    drop.forEach(function (k) {
+      if (!base.questions.some(function (q) { return q.key === k; }))
+        throw new Error("cfo plan drops unknown question: " + item.id + "." + k);
+    });
+    const questions = base.questions
+      .filter(function (q) { return drop.indexOf(q.key) === -1; })
+      .map(function (q) {
+        const o = item.override && item.override[q.key];
+        return o ? Object.assign({}, q, o) : q;
+      });
+    return { id: base.id, title: item.title || base.title, sub: base.sub, intro: item.intro || base.intro, questions: questions };
   });
 
   form.storageKey = "app_spec_cfo";
@@ -611,7 +641,10 @@ function applyCfoMode(form, person) {
       return n + s.questions.filter(function (q) { return typeof q.showIf !== "function" || q.showIf(state); }).length;
     }, 0);
     box.append(el("h4", {}, "מה בשאלון"));
-    box.append(el("p", {}, `${sections.length} פרקים · כ־${count} שאלות · בערך ${Math.round(count * 0.5 / 5) * 5} דקות. אפשר לעצור ולחזור — התשובות נשמרות במכשיר.`));
+    const visible = sections.flatMap(function (s) {
+      return s.questions.filter(function (q) { return typeof q.showIf !== "function" || q.showIf(state); });
+    });
+    box.append(el("p", {}, `${sections.length} פרקים · ${count} שאלות, רובן בחירה בלחיצה · ${estimateMinutes(visible) - 5}–${estimateMinutes(visible)} דקות. אפשר לעצור ולחזור — התשובות נשמרות במכשיר.`));
     const ol = el("ol", {});
     sections.forEach(function (s) { ol.append(el("li", {}, s.title)); });
     box.append(ol);
@@ -625,4 +658,4 @@ if (typeof location !== "undefined") {
   else if (/[?&]for=cfo(&|$)/.test(location.search)) applyCfoMode(FORM);
 }
 if (typeof document !== "undefined") buildForm(FORM);
-if (typeof module !== "undefined") module.exports = { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA, applyCfoMode, CFO_PLAN };
+if (typeof module !== "undefined") module.exports = { FORM, ROLE, ROLE_ALL, applyMeetingMode, MEETING_AGENDA, applyCfoMode, CFO_PLAN, estimateMinutes };

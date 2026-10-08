@@ -79,7 +79,7 @@ try {
   const missing = ["big","visit","terms","checks","office","it","phones","outputs","end"].filter((id) => !cfo.sections.some((s) => s.id === id));
   if (missing.length) problems.push(`cfo mode misses chapters: ${missing.join(", ")}`);
   const cvis = cfo.sections.flatMap((s) => s.questions.filter((q) => (typeof q.showIf === "function" ? q.showIf(st) : true)));
-  console.log(`\ncfo mode: ${cfo.sections.length} chapters, ${cvis.length} visible / ${ckeys.length - cfo.metaQuestions.length} questions, required ${cvis.filter((q) => q.required).length}`);
+  console.log(`\ncfo mode: ${cfo.sections.length} chapters, ${cvis.length} visible / ${ckeys.length - cfo.metaQuestions.length} questions, required ${cvis.filter((q) => q.required).length}, open-text ${cvis.filter((q) => q.type === "long").length}, ~${fresh.estimateMinutes(cvis)} min`);
   console.log(`  ${cfo.sections.map((s, i) => `${i + 1}. ${s.title} (${s.questions.length})`).join("\n  ")}`);
 } catch (e) {
   problems.push(`applyCfoMode threw: ${e.message}`);
