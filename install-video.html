@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>שאלון מוצר — סרטון הדרכת התקנה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand-mark">AI</div>
+    <div>
+      <h1>שאלון מוצר — סרטון הדרכת התקנה</h1>
+      <p>סמסונג · האייר · שאלון אחד לכל מוצר</p>
+    </div>
+  </div>
+</header>
+<div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+
+<div class="wrap">
+
+  <!-- ------------------------------------------------------------ form -->
+  <div class="screen active" id="screen-form">
+
+    <div class="intro">
+      <h2>שלום, ותודה</h2>
+      <p>אנחנו מכינים סרטון הדרכה שמראה צעד אחר צעד איך מתקינים את המוצר. כדי שהסרטון יהיה מדויק, נבקש כמה פרטים קצרים, ובסוף <b>תמונה והסבר קצר לכל שלב בהתקנה</b>, וחוברת ההדרכה הדיגיטלית.</p>
+      <div class="notice notice-info">
+        <b>כדאי למלא מהטלפון, ליד המוצר</b> — כך אפשר לצלם כל שלב ישר מתוך השאלון.
+        התשובות נשמרות אוטומטית, אפשר לעצור ולחזור. (תמונות שכבר צורפו צריך לצרף שוב אם סוגרים את הדף באמצע.)
+      </div>
+    </div>
+
+    <div id="form"></div>
+
+    <div class="submit-bar">
+      <div class="bar-row">
+        <button class="btn btn-secondary" id="prevBtn" type="button" hidden>הקודם</button>
+        <button class="btn btn-primary" id="submitBtn" type="button">לשלב הבא</button>
+      </div>
+      <p class="hint" id="counter"></p>
+    </div>
+  </div>
+
+  <!-- --------------------------------------------------------- success -->
+  <div class="screen" id="screen-success">
+    <div class="result-card">
+      <div class="result-icon ok">✓</div>
+      <h2>תודה! הכול התקבל</h2>
+      <p>התשובות והתמונות הגיעו אלינו. אם נצטרך הבהרה על שלב מסוים, נתקשר.</p>
+      <div class="btn-row">
+        <button class="btn btn-secondary" type="button" data-action="download">הורדת עותק של התשובות</button>
+      </div>
+      <p style="margin-top:18px;font-size:14px;color:#667089">יש עוד מוצר? טענו את הדף מחדש ובחרו את המותג השני.</p>
+    </div>
+  </div>
+
+  <!-- -------------------------------------------- fallback (no server) -->
+  <div class="screen" id="screen-fallback">
+    <div class="result-card wide">
+      <div class="result-icon ok">✓</div>
+      <h2>סיימתם! עכשיו רק לשלוח</h2>
+      <p class="center">השליחה האוטומטית עדיין לא פעילה. הורידו את קובץ התשובות ושלחו אותו למאיר, <b>יחד עם התמונות</b>, בוואטסאפ או במייל.</p>
+      <textarea class="summary" id="summaryBox" readonly aria-label="סיכום התשובות"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" data-action="download">הורדת קובץ התשובות</button>
+        <a class="btn btn-secondary" id="mailBtn" href="#">שליחה במייל</a>
+        <button class="btn btn-secondary" type="button" data-action="copy">העתקה</button>
+      </div>
+      <p class="center" style="margin-top:16px">
+        <button class="btn btn-secondary" id="fallbackBackBtn" type="button" style="min-height:40px;font-size:14px">חזרה לשאלון</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------ fail -->
+  <div class="screen" id="screen-fail">
+    <div class="result-card">
+      <div class="result-icon bad">!</div>
+      <h2>השליחה נכשלה</h2>
+      <p>התשובות <b>לא אבדו</b>. בדקו שיש קליטה ונסו שוב. אם זה חוזר, הורידו עותק ושלחו למאיר בוואטסאפ יחד עם התמונות.</p>
+      <p style="font-size:13px;color:#9aa3b8;direction:ltr" id="failReason"></p>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="retryBtn" type="button">חזרה וניסיון נוסף</button>
+        <button class="btn btn-secondary" type="button" data-action="download">הורדת עותק של התשובות</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="footer">AI Lab · מאיר לביא</p>
+</div>
+
+<script src="shared.js"></script>
+<script src="install-video.form.js"></script>
+</body>
+</html>

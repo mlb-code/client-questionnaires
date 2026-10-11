@@ -576,3 +576,9 @@ select.jump:focus { border-color: var(--brand-700); box-shadow: 0 0 0 4px var(--
 .cfo-only { display: none; }
 body.cfo .cfo-only { display: block; }
 body.cfo .individual-only { display: none; }
+
+/* Photo step: photo(s) + one-line caption in one block */
+.photostep { display: grid; gap: 10px; }
+.photostep .caption { min-height: 64px; }
+.file-drop.busy { opacity: 0.6; pointer-events: none; }
+.file-drop.busy strong::after { content: " · מכווץ תמונות…"; font-weight: 400; }

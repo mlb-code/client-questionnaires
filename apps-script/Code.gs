@@ -7,7 +7,7 @@
  *   3. emails a Hebrew summary to NOTIFY_EMAIL
  *
  * Deploy: Deploy > New deployment > Web app
- *         Execute as:      Me (meir@ai-lab.co.il)
+ *         Execute as:      Me (laviemb@gmail.com — owner of the Drive folders)
  *         Who has access:  Anyone
  * Then copy the /exec URL into CONFIG.APPS_SCRIPT_URL in shared.js.
  *
@@ -19,21 +19,21 @@
 /* ============================  FILL THESE IN  ============================= */
 
 const FOLDER_IDS = {
-  app_spec: 'PASTE_APP_SPEC_FOLDER_ID',
-  video_samsung: 'PASTE_SAMSUNG_FOLDER_ID',
-  video_haier: 'PASTE_HAIER_FOLDER_ID',
+  app_spec: '1wNTqWuCF5Zw6ys7Qa9bHJ496qKpzbSVq',
+  video_samsung: '1xQfMmWMekuwTlcVAdkYx0W6_u43OlHCq',
+  video_haier: '1DBiweVPtUQ83_a6DQtFKRcRl8Pz0wvDx',
 };
 
-const SHEET_ID = 'PASTE_SHEET_ID';
+const SHEET_ID = '15hPklF0NOsa7vUaF1k49bJa2rre1aYxUUkQpXmel03s';
 
-const NOTIFY_EMAIL = 'meir@ai-lab.co.il';
+const NOTIFY_EMAIL = 'laviemb@gmail.com';
 
 /* ============================  constants  ================================= */
 
 const FORM_NAMES_HE = {
   app_spec: 'אפיון אפליקציית גבייה',
-  video_samsung: 'סרטוני הדרכה — סמסונג',
-  video_haier: 'סרטוני הדרכה — האייר',
+  video_samsung: 'סרטון התקנה — סמסונג',
+  video_haier: 'סרטון התקנה — האייר',
 };
 
 /** Both video departments share one tab; the department is a column. */

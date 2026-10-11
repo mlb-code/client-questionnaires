@@ -12,6 +12,13 @@
      meeting: true       facilitator mode: nothing required, jump menu between
                          chapters, "who answers / minutes" hints per chapter
      skipRequired, jumpMenu, initialState, unknownLabel / unknownOnLabel
+     maxTotalBytes       per-form override of LIMITS.MAX_TOTAL_BYTES
+
+   Question type "photostep": photo(s) + a one-line caption in one block.
+   Answered when it has a photo or a caption. state["__n_<key>"] holds the
+   number of attached files so showIf can reveal the next step.
+   Any file question with compress: true shrinks photos on the device
+   (longest side 1920px, JPEG) before they count against the size limits.
    --------------------------------------------------------------------------- */
 
 /* =====================  CONFIG — Meir edits these two  ===================== */
@@ -140,6 +147,8 @@ function buildForm(FORM) {
   function hasAnswer(q) {
     const v = state[q.key];
     if (q.type === "file") return (files[q.key] || []).length > 0;
+    if (q.type === "photostep")
+      return (files[q.key] || []).length > 0 || (typeof v === "string" && v.trim() !== "");
     if (v === UNKNOWN) return true;
     if (q.type === "multi") return Array.isArray(v) && v.length > 0;
     return v !== undefined && v !== null && String(v).trim() !== "";
@@ -290,7 +299,7 @@ function buildForm(FORM) {
     wrap.append(renderControl(q));
 
     const unknownAllowed =
-      (q.allowUnknown !== undefined ? q.allowUnknown : !!FORM.allowUnknown) && q.type !== "file";
+      (q.allowUnknown !== undefined ? q.allowUnknown : !!FORM.allowUnknown) && q.type !== "file" && q.type !== "photostep";
     if (unknownAllowed) {
       const on = isUnknown(q);
       wrap.append(
@@ -418,6 +427,22 @@ function buildForm(FORM) {
       case "file":
         return renderFileControl(q);
 
+      case "photostep": {
+        const box = el("div", { class: "photostep" });
+        box.append(renderFileControl(q));
+        const ta = el("textarea", {
+          id: "cap-" + q.key,
+          rows: 2,
+          class: "caption",
+          placeholder: q.placeholder || "במשפט אחד: מה רואים בתמונה ומה עושים בשלב הזה",
+          oninput: (e) => { autoGrow(e.target); commit(e.target.value); },
+        });
+        ta.value = typeof state[q.key] === "string" ? state[q.key] : "";
+        setTimeout(() => autoGrow(ta), 0);
+        box.append(ta);
+        return box;
+      }
+
       default: {
         const inp = el("input", {
           type: "text",
@@ -473,7 +498,7 @@ function buildForm(FORM) {
                 onclick: () => {
                   files[q.key].splice(i, 1);
                   refreshChips();
-                  updateProgress();
+                  fileCountChanged(q);
                 },
               },
               "×",
@@ -483,10 +508,15 @@ function buildForm(FORM) {
       });
     }
 
-    input.addEventListener("change", (e) => {
-      const incoming = [...e.target.files];
+    input.addEventListener("change", async (e) => {
+      let incoming = [...e.target.files];
       e.target.value = ""; // let the same file be re-picked after removal
       files[q.key] = files[q.key] || [];
+      if (q.compress || q.type === "photostep") {
+        drop.classList.add("busy");
+        incoming = await Promise.all(incoming.map(compressImage));
+        drop.classList.remove("busy");
+      }
 
       for (const f of incoming) {
         if (files[q.key].length >= LIMITS.MAX_FILES_PER_QUESTION) {
@@ -500,10 +530,10 @@ function buildForm(FORM) {
           );
           continue;
         }
-        if (totalBytes() + f.size > LIMITS.MAX_TOTAL_BYTES) {
+        if (totalBytes() + f.size > maxTotal()) {
           showError(
             q.key,
-            `סך הקבצים בשאלון חורג מ-${formatBytes(LIMITS.MAX_TOTAL_BYTES)}. הסירו קובץ או העלו אותו ישירות לתיקיית הדרייב.`,
+            `סך הקבצים בשאלון חורג מ-${formatBytes(maxTotal())}. הסירו קובץ, או שלחו את הקובץ הגדול כקישור.`,
           );
           break;
         }
@@ -511,7 +541,7 @@ function buildForm(FORM) {
       }
 
       refreshChips();
-      updateProgress();
+      fileCountChanged(q);
     });
 
     box.append(drop, chips);
@@ -543,6 +573,39 @@ function buildForm(FORM) {
     if (!ta.isConnected) return;
     ta.style.height = "auto";
     ta.style.height = Math.min(ta.scrollHeight + 2, 600) + "px";
+  }
+
+  function maxTotal() {
+    return FORM.maxTotalBytes || LIMITS.MAX_TOTAL_BYTES;
+  }
+
+  /* Files are not in `state`, so conditions cannot see them — mirror the count. */
+  function fileCountChanged(q) {
+    state["__n_" + q.key] = (files[q.key] || []).length;
+    saveDraft();
+    clearError(q.key);
+    updateProgress();
+    if (FORM.hasConditionals) rerenderPreservingFocus();
+  }
+
+  /* Phone photos are 3–8MB; 1920px JPEG is plenty for a video reference and
+     ~300–600KB. Anything that is not a decodable image passes through. */
+  async function compressImage(file) {
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) || file.size < 700 * 1024) return file;
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(bmp, 0, 0, w, h);
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.84));
+      if (!blob || blob.size >= file.size) return file;
+      const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+      return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });
+    } catch (_) {
+      return file;
+    }
   }
 
   function totalBytes() {
@@ -629,7 +692,7 @@ function buildForm(FORM) {
     for (const q of current.questions) {
       if (!isVisible(q) || !q.required) continue;
       if (hasAnswer(q)) { clearError(q.key); continue; }
-      showError(q.key, q.type === "file" ? "יש לצרף לפחות קובץ אחד" : "יש להשלים את השדה הזה, או לסמן «לא יודע/ת»");
+      showError(q.key, q.type === "file" ? "יש לצרף לפחות קובץ אחד" : q.type === "photostep" ? "צרפו תמונה או כתבו מה עושים בשלב הזה" : "יש להשלים את השדה הזה, או לסמן «לא יודע/ת»");
       if (!firstBad) firstBad = q.key;
     }
     return firstBad;
@@ -697,6 +760,11 @@ function buildForm(FORM) {
       const list = files[q.key] || [];
       return list.length ? list.map((f) => f.name).join(", ") : "";
     }
+    if (q.type === "photostep") {
+      const list = files[q.key] || [];
+      const text = typeof v === "string" ? v.trim() : "";
+      return [text, list.length ? "[תמונות: " + list.map((f) => f.name).join(", ") + "]" : ""].filter(Boolean).join("\n");
+    }
     if (Array.isArray(v)) return v.join(", ");
     return v === undefined || v === null ? "" : String(v);
   }
@@ -727,10 +795,11 @@ function buildForm(FORM) {
 
     const payloadFiles = [];
     for (const q of allQuestions()) {
-      if (q.type !== "file" || !isVisible(q)) continue;
-      for (const f of files[q.key] || []) {
+      if ((q.type !== "file" && q.type !== "photostep") || !isVisible(q)) continue;
+      for (const [i, f] of (files[q.key] || []).entries()) {
         payloadFiles.push({
-          name: f.name,
+          // Prefix keeps step order in the Drive folder: "03-2 — name.jpg".
+          name: q.filePrefix ? `${q.filePrefix}-${i + 1} — ${f.name}` : f.name,
           mimeType: f.type || "application/octet-stream",
           data: await readAsBase64(f),
           // Beyond the minimum shape, and worth it: without this the email and
@@ -887,7 +956,7 @@ function buildForm(FORM) {
   if (restored) {
     toast("טיוטה שוחזרה — התשובות שמילאתם נשמרו במכשיר");
     // Files cannot be serialised, so a restored draft never carries them.
-    const hadFiles = FORM.sections.some((s) => s.questions.some((q) => q.type === "file"));
+    const hadFiles = FORM.sections.some((s) => s.questions.some((q) => q.type === "file" || q.type === "photostep"));
     if (hadFiles) {
       setTimeout(() => toast("שימו לב: קבצים שצורפו קודם יש לצרף מחדש", "warn"), 4400);
     }
