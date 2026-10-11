@@ -100,7 +100,9 @@ function buildForm(FORM) {
 
   /* -----------------------------------------------------------  autosave  */
 
-  const STORAGE_KEY = "cq_draft_" + FORM.storageKey;
+  // A preview (?preview=1) keeps its own draft so it never mixes with a real one.
+  const IS_PREVIEW = typeof location !== "undefined" && /[?&]preview=1(&|$)/.test(location.search);
+  const STORAGE_KEY = "cq_draft_" + FORM.storageKey + (IS_PREVIEW ? "_preview" : "");
 
   const saveDraft = debounce(() => {
     try {
@@ -474,7 +476,7 @@ function buildForm(FORM) {
       el(
         "span",
         {},
-        `עד ${LIMITS.MAX_FILES_PER_QUESTION} קבצים · עד ${formatBytes(LIMITS.MAX_FILE_BYTES)} לקובץ`,
+        `עד ${q.maxFiles || LIMITS.MAX_FILES_PER_QUESTION} קבצים · עד ${formatBytes(LIMITS.MAX_FILE_BYTES)} לקובץ`,
       ),
       input,
     );
@@ -519,8 +521,8 @@ function buildForm(FORM) {
       }
 
       for (const f of incoming) {
-        if (files[q.key].length >= LIMITS.MAX_FILES_PER_QUESTION) {
-          showError(q.key, `אפשר לצרף עד ${LIMITS.MAX_FILES_PER_QUESTION} קבצים לשאלה זו.`);
+        if (files[q.key].length >= (q.maxFiles || LIMITS.MAX_FILES_PER_QUESTION)) {
+          showError(q.key, `אפשר לצרף עד ${q.maxFiles || LIMITS.MAX_FILES_PER_QUESTION} קבצים לשאלה זו.`);
           break;
         }
         if (f.size > LIMITS.MAX_FILE_BYTES) {
@@ -799,7 +801,7 @@ function buildForm(FORM) {
       for (const [i, f] of (files[q.key] || []).entries()) {
         payloadFiles.push({
           // Prefix keeps step order in the Drive folder: "03-2 — name.jpg".
-          name: q.filePrefix ? `${q.filePrefix}-${i + 1} — ${f.name}` : f.name,
+          name: q.filePrefix ? `${q.filePrefix}-${String(i + 1).padStart(2, "0")} — ${f.name}` : f.name,
           mimeType: f.type || "application/octet-stream",
           data: await readAsBase64(f),
           // Beyond the minimum shape, and worth it: without this the email and
@@ -889,6 +891,10 @@ function buildForm(FORM) {
   }
 
   async function submit() {
+    if (typeof PREVIEW !== "undefined" && PREVIEW) {
+      toast("מצב תצוגה — השאלון לא נשלח. הנציגים מקבלים את הקישור בלי preview.", "warn");
+      return;
+    }
     const bad = validate();
     if (bad) {
       // In wizard mode the offending question may live on another step.
@@ -946,6 +952,19 @@ function buildForm(FORM) {
   }
 
   /* ---------------------------------------------------------------  boot  */
+
+  // ?preview=1 — for Meir: nothing required, jump between pages, never sends.
+  const PREVIEW = IS_PREVIEW;
+  if (PREVIEW) {
+    FORM.skipRequired = true;
+    FORM.jumpMenu = true;
+    document.body.classList.add("preview");
+    const bar = el("div", { class: "preview-bar" }, "מצב תצוגה · שום שאלה לא חובה · אפשר לקפוץ בין העמודים מהתפריט · שום דבר לא נשלח");
+    document.body.prepend(bar);
+    // A preview may still restore after a reload; Object.assign below keeps that.
+    // Show every photo step so the whole page is visible.
+    FORM.sections.forEach((sec) => sec.questions.forEach((q) => { if (q.type === "photostep") q.showIf = undefined; }));
+  }
 
   const restored = loadDraft();
   if (!restored && FORM.initialState) Object.assign(state, FORM.initialState);

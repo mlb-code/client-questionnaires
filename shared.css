@@ -234,6 +234,7 @@ input.invalid, textarea.invalid, .options.invalid {
 /* --------------------------------------------------------------- file input */
 
 .file-drop {
+  display: block;
   border: 2px dashed var(--brand-100);
   border-radius: 12px;
   background: var(--brand-50);
@@ -582,3 +583,12 @@ body.cfo .individual-only { display: none; }
 .photostep .caption { min-height: 64px; }
 .file-drop.busy { opacity: 0.6; pointer-events: none; }
 .file-drop.busy strong::after { content: " · מכווץ תמונות…"; font-weight: 400; }
+
+/* ?preview=1 */
+.preview-bar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--warn); color: #fff;
+  text-align: center; font-size: 13px; font-weight: 700;
+  padding: 7px 12px;
+}
+body.preview .topbar { top: 31px; }
