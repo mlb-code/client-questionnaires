@@ -25,14 +25,14 @@
 
 const CONFIG = {
   // Paste the Apps Script web app URL here (ends with /exec).
-  APPS_SCRIPT_URL: "PASTE_APPS_SCRIPT_URL_HERE",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwjz96xk4y_Sk9qwOrHkaNNqYWmOmJC3Oae-pO_2G-K2h9uFe031Hk_mGttaCFRFPCP/exec",
 
   // Shared Drive folder link for files too large to upload through the form.
   // Leave as-is to hide the "upload it directly" note entirely.
   DRIVE_UPLOAD_LINK: "DRIVE_UPLOAD_LINK",
 
   // Where the no-server fallback ("שליחה במייל") addresses the answers.
-  FALLBACK_EMAIL: "meir@ai-lab.co.il",
+  FALLBACK_EMAIL: "laviemb@gmail.com",
 };
 
 /* ==========================  LIMITS  ====================================== */
