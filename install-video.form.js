@@ -52,7 +52,7 @@ const FORM = {
           label: "שם הדגם המדויק",
           help: "כפי שמופיע על המדבקה שעל המוצר או על הקרטון.",
           placeholder: "למשל: RF65DG960ESR" },
-        { key: "product_photos", type: "file", compress: true, accept: "image/*",
+        { key: "product_photos", type: "file", compress: true, accept: "image/*", maxFiles: 10,
           label: "צילום של המוצר השלם, וצילום של מדבקת הדגם",
           fileLabel: "צילום או בחירת תמונות",
           filePrefix: "00-מוצר" },
@@ -113,7 +113,7 @@ const FORM = {
       title: "חוברת ההדרכה",
       sub: "וסיימנו",
       questions: [
-        { key: "manual_file", type: "file", accept: ".pdf,application/pdf,image/*",
+        { key: "manual_file", type: "file", accept: ".pdf,application/pdf,image/*", maxFiles: 10,
           label: "חוברת ההדרכה הדיגיטלית (PDF)",
           help: "קובץ גדול מ-20MB? הדביקו קישור בשאלה הבאה במקום.",
           fileLabel: "בחירת קובץ PDF",
